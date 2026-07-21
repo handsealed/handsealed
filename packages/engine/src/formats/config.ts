@@ -22,7 +22,7 @@ export interface HandsealedConfig {
 
 const TOP_KEYS = new Set(["version", "suites", "testRoots", "verificationSurface"]);
 const SUITE_KEYS = new Set(["run", "results"]);
-const SUITE_NAME = /^[a-z0-9][a-z0-9-]*$/;
+export const SUITE_NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
 
 interface Positioned {
   range?: [number, number, number] | null | undefined;
@@ -101,7 +101,7 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
         const nameNode = suitePair.key;
         const name =
           isScalar(nameNode) && typeof nameNode.value === "string" ? nameNode.value : undefined;
-        if (name === undefined || !SUITE_NAME.test(name)) {
+        if (name === undefined || !SUITE_NAME_RE.test(name)) {
           push("suite names must match [a-z0-9][a-z0-9-]*", nameNode as Positioned);
           continue;
         }

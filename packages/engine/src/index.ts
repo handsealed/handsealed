@@ -10,8 +10,10 @@ export {
   printSpec,
 } from "./formats/spec.js";
 export type { EvidenceClass, Spec, SpecStatus } from "./formats/spec.js";
-export { parseConfig } from "./formats/config.js";
+export { SUITE_NAME_RE, parseConfig } from "./formats/config.js";
 export type { HandsealedConfig, SuiteConfig } from "./formats/config.js";
+export { cardinalityOf, caseNames, countsOf, parseResults } from "./formats/results.js";
+export type { CaseOutcome, SuiteResults, TestCase } from "./formats/results.js";
 export type {
   ChangeKind,
   CommitRange,

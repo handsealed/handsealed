@@ -16,7 +16,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./reporter": {
+      "types": "./dist/reporter.d.ts",
+      "default": "./dist/reporter.js"
     }
+  },
+  "dependencies": {
+    "@handsealed/engine": "0.0.0"
   },
   "engines": {
     "node": ">=22"
