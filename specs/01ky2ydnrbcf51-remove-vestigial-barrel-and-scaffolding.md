@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: non-additive
 paths: packages/**
 outcome: Remove the vestigial engine facts re-export barrel (engine imports the Facts types directly from @handsealed/facts) and the PACKAGE_NAME placeholder constants left over from the empty-package scaffolding, along with their trivial index wiring-tests; the empty verifier main entry is dropped in favour of its bin and reporter subpath.
