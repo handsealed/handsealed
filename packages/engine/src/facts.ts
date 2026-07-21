@@ -19,20 +19,26 @@ export type ChangeKind = "added" | "modified" | "deleted" | "renamed" | "copied"
 
 export interface PathChange {
   /** The path after the change (the new path for renames/copies). */
-  path: string;
-  kind: ChangeKind;
+  readonly path: string;
+  readonly kind: ChangeKind;
   /** The old path, for renamed/copied entries. */
-  fromPath?: string;
+  readonly fromPath?: string;
 }
 
 /** One file's slice of a unified diff. */
 export interface FilePatch {
-  path: string;
-  fromPath?: string;
-  kind: ChangeKind;
+  readonly path: string;
+  readonly fromPath?: string;
+  readonly kind: ChangeKind;
   /** Unified diff text for this file; empty for binary files. */
-  text: string;
-  binary: boolean;
+  readonly text: string;
+  readonly binary: boolean;
+}
+
+/** A per-file stable diff id. */
+export interface PatchFileId {
+  readonly path: string;
+  readonly id: string;
 }
 
 /**
@@ -42,39 +48,39 @@ export interface FilePatch {
  */
 export interface PatchIdentity {
   /** One id over the whole diff. */
-  combined: string;
+  readonly combined: string;
   /** One id per changed file, keyed by post-change path. */
-  files: Array<{ path: string; id: string }>;
+  readonly files: readonly PatchFileId[];
 }
 
 /** A contiguous commit range, `base` exclusive, `head` inclusive. */
 export interface CommitRange {
-  base: Oid;
-  head: Oid;
+  readonly base: Oid;
+  readonly head: Oid;
 }
 
 export type RangeDiffMarker = "equal" | "modified" | "only-in-old" | "only-in-new";
 
 /** One pairing in a range-diff between two versions of a series. */
 export interface RangeDiffEntry {
-  marker: RangeDiffMarker;
-  oldSubject?: string;
-  newSubject?: string;
+  readonly marker: RangeDiffMarker;
+  readonly oldSubject?: string;
+  readonly newSubject?: string;
 }
 
 /** Whether merging `from` into `into` would be conflict-free. */
 export interface MergeTreePreflight {
-  clean: boolean;
-  conflictedPaths: string[];
+  readonly clean: boolean;
+  readonly conflictedPaths: readonly string[];
 }
 
 export interface Facts {
   /** Paths changed between two commits' trees, rename-aware. */
-  pathsChanged(base: Oid, head: Oid): Promise<PathChange[]>;
+  pathsChanged(base: Oid, head: Oid): Promise<readonly PathChange[]>;
   /** Full contents of `path` at `revision`, or `null` if absent there. */
   fileAtRef(revision: string, path: string): Promise<string | null>;
   /** Per-file unified diffs between two commits. */
-  patchOf(base: Oid, head: Oid): Promise<FilePatch[]>;
+  patchOf(base: Oid, head: Oid): Promise<readonly FilePatch[]>;
   /** True when `ancestor` is an ancestor of (or equal to) `descendant`. */
   isAncestor(ancestor: Oid, descendant: Oid): Promise<boolean>;
   /** Best common ancestor, or `null` when histories are unrelated. */
@@ -82,7 +88,7 @@ export interface Facts {
   /** Stable patch identity for the diff `base..head`. */
   patchIdOf(base: Oid, head: Oid): Promise<PatchIdentity>;
   /** Pairing of two series (e.g. pre- and post-rebase) by patch similarity. */
-  rangeDiff(previous: CommitRange, current: CommitRange): Promise<RangeDiffEntry[]>;
+  rangeDiff(previous: CommitRange, current: CommitRange): Promise<readonly RangeDiffEntry[]>;
   /** In-memory merge test: would merging `from` into `into` be clean? */
   mergeTreePreflight(into: Oid, from: Oid): Promise<MergeTreePreflight>;
 }

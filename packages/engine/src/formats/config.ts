@@ -5,41 +5,34 @@ import { fail, issue, ok } from "./issues.js";
 /** One test suite the customer's CI runs. */
 export interface SuiteConfig {
   /** The command that runs the suite. */
-  run: string;
+  readonly run: string;
   /** Path the suite writes its structured result file to. */
-  results: string;
+  readonly results: string;
 }
 
 /** The `.handsealed.yml` contract. */
 export interface HandsealedConfig {
-  version: 1;
-  suites: Record<string, SuiteConfig>;
+  readonly version: 1;
+  readonly suites: Readonly<Record<string, SuiteConfig>>;
   /** The per-runtime test-root manifest: files under these ride with head in evidence builds. */
-  testRoots: string[];
+  readonly testRoots: readonly string[];
   /** Files whose diffs earn the verification-surface badge. */
-  verificationSurface?: string[];
+  readonly verificationSurface?: readonly string[];
 }
 
 const TOP_KEYS = new Set(["version", "suites", "testRoots", "verificationSurface"]);
 const SUITE_KEYS = new Set(["run", "results"]);
 export const SUITE_NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
 
-interface Positioned {
-  range?: [number, number, number] | null | undefined;
-}
-
 export function parseConfig(source: string): ParseResult<HandsealedConfig> {
   const lineCounter = new LineCounter();
   const doc = parseDocument(source, { lineCounter });
   const issues: Issue[] = [];
-  const at = (node: Positioned | null | undefined): { line: number; column: number } => {
-    const offset = node?.range?.[0] ?? 0;
-    const pos = lineCounter.linePos(offset);
-    return { line: pos.line, column: pos.col };
-  };
-  const push = (message: string, node: Positioned | null | undefined): void => {
-    const pos = at(node);
-    issues.push(issue(message, pos.line, pos.column));
+  /** Position of any yaml node (or fallback 1:1); the single cast lives here. */
+  const push = (message: string, node: unknown): void => {
+    const range = (node as { range?: readonly [number, number, number] } | null | undefined)?.range;
+    const pos = lineCounter.linePos(range?.[0] ?? 0);
+    issues.push(issue(message, pos.line, pos.col));
   };
 
   for (const err of doc.errors) {
@@ -60,7 +53,7 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
 
   const stringList = (node: unknown, name: string): string[] | undefined => {
     if (!isSeq(node)) {
-      push(`"${name}" must be a list`, node as Positioned);
+      push(`"${name}" must be a list`, node);
       return undefined;
     }
     const values: string[] = [];
@@ -68,7 +61,7 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
       if (isScalar(item) && typeof item.value === "string" && item.value.trim() !== "") {
         values.push(item.value);
       } else {
-        push(`"${name}" entries must be non-empty strings`, item as Positioned);
+        push(`"${name}" entries must be non-empty strings`, item);
       }
     }
     if (values.length === 0) push(`"${name}" must not be empty`, node);
@@ -79,22 +72,16 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
     const keyNode = pair.key;
     const key = isScalar(keyNode) && typeof keyNode.value === "string" ? keyNode.value : undefined;
     if (key === undefined || !TOP_KEYS.has(key)) {
-      push(
-        `unknown key "${String(isScalar(keyNode) ? keyNode.value : keyNode)}"`,
-        keyNode as Positioned,
-      );
+      push(`unknown key "${String(isScalar(keyNode) ? keyNode.value : keyNode)}"`, keyNode);
       continue;
     }
     const valueNode = pair.value;
     if (key === "version") {
       if (isScalar(valueNode) && valueNode.value === 1) version = 1;
-      else push('"version" must be 1', (valueNode ?? keyNode) as Positioned);
+      else push('"version" must be 1', valueNode ?? keyNode);
     } else if (key === "suites") {
       if (!isMap(valueNode)) {
-        push(
-          '"suites" must be a mapping of suite name to suite config',
-          (valueNode ?? keyNode) as Positioned,
-        );
+        push('"suites" must be a mapping of suite name to suite config', valueNode ?? keyNode);
         continue;
       }
       for (const suitePair of valueNode.items) {
@@ -102,12 +89,12 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
         const name =
           isScalar(nameNode) && typeof nameNode.value === "string" ? nameNode.value : undefined;
         if (name === undefined || !SUITE_NAME_RE.test(name)) {
-          push("suite names must match [a-z0-9][a-z0-9-]*", nameNode as Positioned);
+          push("suite names must match [a-z0-9][a-z0-9-]*", nameNode);
           continue;
         }
         const suiteNode = suitePair.value;
         if (!isMap(suiteNode)) {
-          push(`suite "${name}" must be a mapping`, (suiteNode ?? nameNode) as Positioned);
+          push(`suite "${name}" must be a mapping`, suiteNode ?? nameNode);
           continue;
         }
         let run: string | undefined;
@@ -119,7 +106,7 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
               ? fieldKeyNode.value
               : undefined;
           if (fieldKey === undefined || !SUITE_KEYS.has(fieldKey)) {
-            push(`suite "${name}" has unknown key`, fieldKeyNode as Positioned);
+            push(`suite "${name}" has unknown key`, fieldKeyNode);
             continue;
           }
           const fieldValue = fieldPair.value;
@@ -133,13 +120,12 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
           } else {
             push(
               `suite "${name}" field "${fieldKey}" must be a non-empty string`,
-              (fieldValue ?? fieldKeyNode) as Positioned,
+              fieldValue ?? fieldKeyNode,
             );
           }
         }
-        if (run === undefined) push(`suite "${name}" is missing "run"`, nameNode as Positioned);
-        if (results === undefined)
-          push(`suite "${name}" is missing "results"`, nameNode as Positioned);
+        if (run === undefined) push(`suite "${name}" is missing "run"`, nameNode);
+        if (results === undefined) push(`suite "${name}" is missing "results"`, nameNode);
         if (run !== undefined && results !== undefined) suites[name] = { run, results };
       }
       if (valueNode.items.length === 0) push('"suites" must not be empty', valueNode);
@@ -161,11 +147,10 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
   }
 
   if (issues.length > 0) return fail(issues);
-  const config: HandsealedConfig = {
+  return ok({
     version: 1,
     suites,
     testRoots: testRoots ?? [],
-  };
-  if (verificationSurface !== undefined) config.verificationSurface = verificationSurface;
-  return ok(config);
+    ...(verificationSurface !== undefined ? { verificationSurface } : {}),
+  });
 }

@@ -1,6 +1,6 @@
 import { SUITE_NAME_RE } from "./config.js";
 import type { Issue, ParseResult } from "./issues.js";
-import { fail, issue, ok } from "./issues.js";
+import { fail, isOneOf, issue, ok } from "./issues.js";
 
 /**
  * The `handsealed-results.json` contract: one file per suite run, cases as
@@ -11,20 +11,27 @@ import { fail, issue, ok } from "./issues.js";
  * formats; result files are machine-written.)
  */
 
-export type CaseOutcome = "pass" | "fail" | "skip";
+export const CASE_OUTCOMES = ["pass", "fail", "skip"] as const;
+export type CaseOutcome = (typeof CASE_OUTCOMES)[number];
 
 export interface TestCase {
-  name: string;
-  outcome: CaseOutcome;
+  readonly name: string;
+  readonly outcome: CaseOutcome;
 }
 
 export interface SuiteResults {
-  version: 1;
-  suite: string;
-  cases: TestCase[];
+  readonly version: 1;
+  readonly suite: string;
+  readonly cases: readonly TestCase[];
 }
 
-const OUTCOMES: ReadonlySet<string> = new Set(["pass", "fail", "skip"]);
+export interface SuiteCounts {
+  readonly total: number;
+  readonly pass: number;
+  readonly fail: number;
+  readonly skip: number;
+}
+
 const TOP_KEYS = new Set(["version", "suite", "cases"]);
 const CASE_KEYS = new Set(["name", "outcome"]);
 
@@ -47,10 +54,9 @@ export function parseResults(source: string): ParseResult<SuiteResults> {
     if (!TOP_KEYS.has(key)) push(`unknown key "${key}"`);
   }
   if (record["version"] !== 1) push('"version" must be 1');
-  const suite = record["suite"];
-  if (typeof suite !== "string" || !SUITE_NAME_RE.test(suite)) {
-    push('"suite" must match [a-z0-9][a-z0-9-]*');
-  }
+  const rawSuite = record["suite"];
+  const suite = typeof rawSuite === "string" && SUITE_NAME_RE.test(rawSuite) ? rawSuite : undefined;
+  if (suite === undefined) push('"suite" must match [a-z0-9][a-z0-9-]*');
   const cases: TestCase[] = [];
   const rawCases = record["cases"];
   if (!Array.isArray(rawCases)) {
@@ -71,23 +77,19 @@ export function parseResults(source: string): ParseResult<SuiteResults> {
         push(`cases[${index}].name must be a non-empty string`);
         return;
       }
-      if (typeof outcome !== "string" || !OUTCOMES.has(outcome)) {
+      if (typeof outcome !== "string" || !isOneOf(CASE_OUTCOMES, outcome)) {
         push(`cases[${index}].outcome must be pass | fail | skip`);
         return;
       }
-      cases.push({ name, outcome: outcome as CaseOutcome });
+      cases.push({ name, outcome });
     });
   }
   if (issues.length > 0) return fail(issues);
-  return ok({ version: 1, suite: suite as string, cases });
+  if (suite === undefined) return fail([issue("results are incomplete", 1)]);
+  return ok({ version: 1, suite, cases });
 }
 
-export function countsOf(results: SuiteResults): {
-  total: number;
-  pass: number;
-  fail: number;
-  skip: number;
-} {
+export function countsOf(results: SuiteResults): SuiteCounts {
   let pass = 0;
   let failed = 0;
   let skip = 0;

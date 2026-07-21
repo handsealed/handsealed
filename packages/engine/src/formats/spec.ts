@@ -1,5 +1,5 @@
 import type { Issue, ParseResult } from "./issues.js";
-import { fail, issue, ok } from "./issues.js";
+import { fail, isOneOf, issue, ok } from "./issues.js";
 
 export const SPEC_STATUSES = ["open", "delivered", "reverted"] as const;
 export type SpecStatus = (typeof SPEC_STATUSES)[number];
@@ -9,16 +9,16 @@ export type EvidenceClass = (typeof EVIDENCE_CLASSES)[number];
 
 /** A mandate: the frozen authorization object. */
 export interface Spec {
-  status: SpecStatus;
-  evidence: EvidenceClass;
+  readonly status: SpecStatus;
+  readonly evidence: EvidenceClass;
   /** Optional manual-smoke note for runtime/device/infra paths. */
-  smoke?: string;
+  readonly smoke?: string;
   /** Optional scope ceiling: glob allowlist for product paths. */
-  paths?: string[];
+  readonly paths?: readonly string[];
   /** One folded paragraph: what changes and why. */
-  outcome: string;
+  readonly outcome: string;
   /** Observable acceptance criteria, one per bullet. */
-  acceptance: string[];
+  readonly acceptance: readonly string[];
 }
 
 /**
@@ -42,6 +42,11 @@ export function isValidSpecFilename(filename: string): boolean {
   return FILENAME.test(filename);
 }
 
+/**
+ * Parses the canonical spec grammar. `outcome` folds: its value continues
+ * over following lines until a blank line, a field, or a bullet; blank
+ * lines otherwise separate nothing and carry no meaning.
+ */
 export function parseSpec(source: string): ParseResult<Spec> {
   const issues: Issue[] = [];
   const lines = source.split("\n");
@@ -99,23 +104,22 @@ export function parseSpec(source: string): ParseResult<Spec> {
       const value = (field[2] ?? "").trim();
       outcomeLines = undefined;
       inAcceptance = false;
-      if (!(FIELD_ORDER as readonly string[]).includes(name)) {
+      if (!isOneOf(FIELD_ORDER, name)) {
         issues.push(issue(`unknown field "${name}"`, lineNo));
         continue;
       }
-      const known = name as FieldName;
-      expectInOrder(known, lineNo);
-      if (seen.has(known)) continue;
-      seen.set(known, value);
-      if (known === "acceptance") {
+      expectInOrder(name, lineNo);
+      if (seen.has(name)) continue;
+      seen.set(name, value);
+      if (name === "acceptance") {
         if (value !== "")
           issues.push(issue('field "acceptance" takes no inline value; use bullets', lineNo));
         inAcceptance = true;
-      } else if (known === "outcome") {
+      } else if (name === "outcome") {
         if (value === "") issues.push(issue('field "outcome" must not be empty', lineNo));
         outcomeLines = [value];
       } else if (value === "") {
-        issues.push(issue(`field "${known}" must not be empty`, lineNo));
+        issues.push(issue(`field "${name}" must not be empty`, lineNo));
       }
       continue;
     }
@@ -135,11 +139,15 @@ export function parseSpec(source: string): ParseResult<Spec> {
   }
 
   const statusRaw = seen.get("status");
-  if (statusRaw !== undefined && !(SPEC_STATUSES as readonly string[]).includes(statusRaw)) {
+  const status =
+    statusRaw !== undefined && isOneOf(SPEC_STATUSES, statusRaw) ? statusRaw : undefined;
+  if (statusRaw !== undefined && status === undefined) {
     issues.push(issue(`invalid status "${statusRaw}" (expected: ${SPEC_STATUSES.join(" | ")})`, 1));
   }
   const evidenceRaw = seen.get("evidence");
-  if (evidenceRaw !== undefined && !(EVIDENCE_CLASSES as readonly string[]).includes(evidenceRaw)) {
+  const evidence =
+    evidenceRaw !== undefined && isOneOf(EVIDENCE_CLASSES, evidenceRaw) ? evidenceRaw : undefined;
+  if (evidenceRaw !== undefined && evidence === undefined) {
     issues.push(
       issue(`invalid evidence "${evidenceRaw}" (expected: ${EVIDENCE_CLASSES.join(" | ")})`, 1),
     );
@@ -149,18 +157,20 @@ export function parseSpec(source: string): ParseResult<Spec> {
   }
 
   if (issues.length > 0) return fail(issues);
+  if (status === undefined || evidence === undefined) {
+    return fail([issue("spec is incomplete", lines.length)]);
+  }
 
-  const spec: Spec = {
-    status: statusRaw as SpecStatus,
-    evidence: evidenceRaw as EvidenceClass,
+  const smoke = seen.get("smoke");
+  const paths = seen.get("paths");
+  return ok({
+    status,
+    evidence,
     outcome: seen.get("outcome") ?? "",
     acceptance,
-  };
-  const smoke = seen.get("smoke");
-  if (smoke !== undefined) spec.smoke = smoke;
-  const paths = seen.get("paths");
-  if (paths !== undefined) spec.paths = paths.split(/\s+/).filter((p) => p.length > 0);
-  return ok(spec);
+    ...(smoke !== undefined ? { smoke } : {}),
+    ...(paths !== undefined ? { paths: paths.split(/\s+/).filter((p) => p.length > 0) } : {}),
+  });
 }
 
 /** Canonical form: parse(printSpec(parseSpec(x).value)) is stable. */

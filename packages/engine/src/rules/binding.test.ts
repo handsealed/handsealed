@@ -30,8 +30,10 @@ const modified = (path: string): PathChange => ({ path, kind: "modified" });
 test("a clean flip binds the mandate", async () => {
   const facts = factsWith({ [`b:${FLIP}`]: OPEN, [`h:${FLIP}`]: DELIVERED });
   const result = await validateBinding(facts, "b", "h", [modified(FLIP), modified("src/a.ts")]);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
   assert.equal(result.verdict.status, "pass");
-  assert.equal(result.spec?.status, "delivered");
+  assert.equal(result.spec.status, "delivered");
   assert.equal(result.slug, "01k0h3v8-do-thing");
   assert.equal(result.flipPath, FLIP);
 });

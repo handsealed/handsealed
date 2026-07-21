@@ -13,7 +13,7 @@ const TITLE = "Spec lane";
 export async function validateSpecLane(
   facts: Facts,
   head: Oid,
-  changes: PathChange[],
+  changes: readonly PathChange[],
 ): Promise<RuleVerdict> {
   const findings: Finding[] = [];
   for (const change of changes) {

@@ -12,8 +12,14 @@ export {
 export type { EvidenceClass, Spec, SpecStatus } from "./formats/spec.js";
 export { SUITE_NAME_RE, parseConfig } from "./formats/config.js";
 export type { HandsealedConfig, SuiteConfig } from "./formats/config.js";
-export { cardinalityOf, caseNames, countsOf, parseResults } from "./formats/results.js";
-export type { CaseOutcome, SuiteResults, TestCase } from "./formats/results.js";
+export {
+  CASE_OUTCOMES,
+  cardinalityOf,
+  caseNames,
+  countsOf,
+  parseResults,
+} from "./formats/results.js";
+export type { CaseOutcome, SuiteCounts, SuiteResults, TestCase } from "./formats/results.js";
 export type {
   ChangeKind,
   CommitRange,
@@ -21,6 +27,7 @@ export type {
   FilePatch,
   MergeTreePreflight,
   Oid,
+  PatchFileId,
   PatchIdentity,
   PathChange,
   RangeDiffEntry,
@@ -40,4 +47,4 @@ export { reapprovalFact } from "./rules/reapproval.js";
 export { checkRevert } from "./rules/revert.js";
 export { globToRegExp, matchesAny, matchesPattern } from "./rules/glob.js";
 export { collectVerdicts, renderMarkdown, verdict } from "./rules/verdict.js";
-export type { Finding, RuleStatus, RuleVerdict, Verdicts } from "./rules/verdict.js";
+export type { Finding, RuleId, RuleStatus, RuleVerdict, Verdicts } from "./rules/verdict.js";

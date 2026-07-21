@@ -1,21 +1,34 @@
-import type { Facts, Oid, PathChange } from "../facts.js";
+import type { ChangeKind, Facts, Oid, PathChange } from "../facts.js";
 import { isValidSpecFilename, parseSpec, type Spec } from "../formats/spec.js";
 import { SPECS_DIR } from "./lane.js";
 import type { Finding, RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 
-export interface BindingResult {
-  verdict: RuleVerdict;
-  /** The bound mandate (parsed at head) when the flip is valid. */
-  spec?: Spec;
-  flipPath?: string;
-  slug?: string;
-}
+/** Discriminated: a valid flip carries the bound mandate; a failure carries only the verdict. */
+export type BindingResult =
+  | { readonly ok: false; readonly verdict: RuleVerdict }
+  | {
+      readonly ok: true;
+      readonly verdict: RuleVerdict;
+      /** The bound mandate, parsed at head. */
+      readonly spec: Spec;
+      readonly flipPath: string;
+      readonly slug: string;
+    };
 
 const TITLE = "Mandate binding";
-const fail = (findings: Finding[]): BindingResult => ({
+const fail = (findings: readonly Finding[]): BindingResult => ({
+  ok: false,
   verdict: verdict("binding", TITLE, "fail", findings),
 });
+
+const REFUSALS: Record<Exclude<ChangeKind, "modified">, string> = {
+  added: "spec created in the same change — self-authorization is impossible",
+  deleted: "specs are never deleted by implementation changes",
+  renamed: "specs are never renamed by implementation changes",
+  copied: "specs are never copied by implementation changes",
+  typechange: "spec type changes are not a flip",
+};
 
 /**
  * The status flip is the binding: exactly one spec file changes, and the
@@ -26,28 +39,23 @@ export async function validateBinding(
   facts: Facts,
   base: Oid,
   head: Oid,
-  changes: PathChange[],
+  changes: readonly PathChange[],
 ): Promise<BindingResult> {
   const specChanges = changes.filter(
-    (c) => c.path.startsWith(SPECS_DIR) || (c.fromPath?.startsWith(SPECS_DIR) ?? false),
+    (change) =>
+      change.path.startsWith(SPECS_DIR) || (change.fromPath?.startsWith(SPECS_DIR) ?? false),
   );
-  if (specChanges.length === 0) {
+  const change = specChanges[0];
+  if (change === undefined) {
     return fail([{ message: "no mandate: an implementation change must flip exactly one spec" }]);
   }
   if (specChanges.length > 1) {
-    return fail(specChanges.map((c) => ({ message: "more than one spec touched", path: c.path })));
+    return fail(
+      specChanges.map((extra) => ({ message: "more than one spec touched", path: extra.path })),
+    );
   }
-  const change = specChanges[0];
-  if (change === undefined) return fail([{ message: "no spec change" }]);
   if (change.kind !== "modified") {
-    const why: Record<string, string> = {
-      added: "spec created in the same change — self-authorization is impossible",
-      deleted: "specs are never deleted by implementation changes",
-      renamed: "specs are never renamed by implementation changes",
-      copied: "specs are never copied by implementation changes",
-      typechange: "spec type changes are not a flip",
-    };
-    return fail([{ message: why[change.kind] ?? "unsupported spec change", path: change.path }]);
+    return fail([{ message: REFUSALS[change.kind], path: change.path }]);
   }
   const flipPath = change.path;
   const filename = flipPath.slice(flipPath.lastIndexOf("/") + 1);
@@ -71,8 +79,8 @@ export async function validateBinding(
   const baseParsed = parseSpec(baseContent);
   if (!baseParsed.ok) {
     return fail(
-      baseParsed.issues.map((i) => ({
-        message: `base spec invalid: ${i.message}`,
+      baseParsed.issues.map((problem) => ({
+        message: `base spec invalid: ${problem.message}`,
         path: flipPath,
       })),
     );
@@ -87,8 +95,8 @@ export async function validateBinding(
   const headParsed = parseSpec(headContent);
   if (!headParsed.ok) {
     return fail(
-      headParsed.issues.map((i) => ({
-        message: `head spec invalid: ${i.message}`,
+      headParsed.issues.map((problem) => ({
+        message: `head spec invalid: ${problem.message}`,
         path: flipPath,
       })),
     );
@@ -109,6 +117,7 @@ export async function validateBinding(
   }
 
   return {
+    ok: true,
     verdict: verdict("binding", TITLE, "pass", [
       { message: "mandate open at base, delivered at head; flip is byte-clean", path: flipPath },
     ]),

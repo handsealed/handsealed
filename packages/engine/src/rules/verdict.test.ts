@@ -4,12 +4,15 @@ import { collectVerdicts, renderMarkdown, verdict } from "./verdict.js";
 
 test("overall fails when any rule fails; attention and info never gate", () => {
   const pass = collectVerdicts([
-    verdict("a", "A", "pass"),
-    verdict("b", "B", "attention"),
-    verdict("c", "C", "info"),
+    verdict("lane", "Lane", "pass"),
+    verdict("cardinality", "Suite cardinality", "attention"),
+    verdict("config", "Config", "info"),
   ]);
   assert.equal(pass.overall, "pass");
-  const fail = collectVerdicts([verdict("a", "A", "pass"), verdict("b", "B", "fail")]);
+  const fail = collectVerdicts([
+    verdict("lane", "Lane", "pass"),
+    verdict("binding", "Mandate binding", "fail"),
+  ]);
   assert.equal(fail.overall, "fail");
 });
 
@@ -46,9 +49,9 @@ test("markdown rendering is deterministic and complete", () => {
 });
 
 test("the JSON form is stable", () => {
-  const verdicts = collectVerdicts([verdict("a", "A", "pass", [{ message: "m" }])]);
+  const verdicts = collectVerdicts([verdict("lane", "Lane", "pass", [{ message: "m" }])]);
   assert.equal(
     JSON.stringify(verdicts),
-    '{"overall":"pass","rules":[{"rule":"a","title":"A","status":"pass","findings":[{"message":"m"}]}]}',
+    '{"overall":"pass","rules":[{"rule":"lane","title":"Lane","status":"pass","findings":[{"message":"m"}]}]}',
   );
 });
