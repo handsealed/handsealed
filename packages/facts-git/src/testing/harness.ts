@@ -11,7 +11,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Oid } from "@handsealed/engine";
+import type { Oid } from "@handsealed/facts";
 
 const FIXTURE_EPOCH = 1_750_000_000;
 

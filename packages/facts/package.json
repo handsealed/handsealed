@@ -1,12 +1,12 @@
 {
-  "name": "@handsealed/facts-git",
+  "name": "@handsealed/facts",
   "version": "0.1.0",
-  "description": "The single git facts implementation for Handsealed: plumbing-only, bare-clone-compatible.",
+  "description": "The Handsealed facts contract: the repository questions the engine asks, plus an in-memory double.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/handsealed/handsealed.git",
-    "directory": "packages/facts-git"
+    "directory": "packages/facts"
   },
   "files": [
     "dist"
@@ -17,17 +17,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./testing": {
-      "types": "./dist/testing/harness.d.ts",
-      "default": "./dist/testing/harness.js"
+    "./memory": {
+      "types": "./dist/memory.d.ts",
+      "default": "./dist/memory.js"
     }
   },
   "publishConfig": {
     "access": "public",
     "provenance": true
-  },
-  "dependencies": {
-    "@handsealed/facts": "^0.1.0"
   },
   "engines": {
     "node": ">=22"

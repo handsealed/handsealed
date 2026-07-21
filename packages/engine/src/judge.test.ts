@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import type { Facts, PathChange } from "./facts.js";
+import { memoryFacts } from "@handsealed/facts/memory";
+import type { PathChange } from "./facts.js";
 import { judge } from "./judge.js";
 
 const OPEN = `status: open\nevidence: additive\npaths: src/**\noutcome: Do the thing.\nacceptance:\n- It works.\n`;
@@ -8,19 +9,8 @@ const DELIVERED = OPEN.replace("status: open", "status: delivered");
 const CONFIG = `version: 1\nsuites:\n  scripts:\n    run: npm test\n    results: r.json\ntestRoots:\n  - test\n`;
 const FLIP = "specs/01k0h3v8-do-thing.md";
 
-const never = async (): Promise<never> => {
-  throw new Error("unused in this test");
-};
-const factsFor = (changes: PathChange[], files: Record<string, string>): Facts => ({
-  pathsChanged: async () => changes,
-  fileAtRef: async (rev, path) => files[`${rev}:${path}`] ?? null,
-  patchOf: never,
-  isAncestor: never,
-  mergeBase: never,
-  patchIdOf: never,
-  rangeDiff: never,
-  mergeTreePreflight: never,
-});
+const factsFor = (changes: PathChange[], files: Record<string, string>) =>
+  memoryFacts({ changes, files });
 
 test("implementation lane composes lane, binding, ceiling, and evidence", async () => {
   const facts = factsFor(

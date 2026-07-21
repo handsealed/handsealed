@@ -1,26 +1,11 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import type { Facts, PathChange } from "../facts.js";
+import { memoryFacts } from "@handsealed/facts/memory";
+import type { PathChange } from "../facts.js";
 import { validateBinding } from "./binding.js";
 
-const never = async (): Promise<never> => {
-  throw new Error("unused in this test");
-};
-const stub: Facts = {
-  pathsChanged: never,
-  fileAtRef: never,
-  patchOf: never,
-  isAncestor: never,
-  mergeBase: never,
-  patchIdOf: never,
-  rangeDiff: never,
-  mergeTreePreflight: never,
-};
-
-const factsWith = (files: Record<string, string>): Facts => ({
-  ...stub,
-  fileAtRef: async (rev, path) => files[`${rev}:${path}`] ?? null,
-});
+const stub = memoryFacts();
+const factsWith = (files: Record<string, string>) => memoryFacts({ files });
 
 const FLIP = "specs/01k0h3v8-do-thing.md";
 const OPEN = `status: open\nevidence: additive\noutcome: Do the thing.\nacceptance:\n- It works.\n`;
