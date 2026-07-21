@@ -10,8 +10,8 @@ const TITLE = "Suite cardinality";
  * never a silent pass.
  */
 export function compareCardinality(
-  baseline: Record<string, number> | undefined,
-  head: Record<string, number>,
+  baseline: Readonly<Record<string, number>> | undefined,
+  head: Readonly<Record<string, number>>,
 ): RuleVerdict {
   if (baseline === undefined) {
     return verdict("cardinality", TITLE, "info", [{ message: "no baseline — counts unverified" }]);

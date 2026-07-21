@@ -13,7 +13,7 @@ const TITLE = "Scope ceiling";
  */
 export function checkCeiling(
   spec: Spec,
-  changes: PathChange[],
+  changes: readonly PathChange[],
   flipPath: string,
   testRoots: readonly string[],
 ): RuleVerdict {

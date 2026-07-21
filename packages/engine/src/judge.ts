@@ -11,16 +11,15 @@ import { collectVerdicts, verdict } from "./rules/verdict.js";
 
 export const CONFIG_PATH = ".handsealed.yml";
 
-interface LoadedConfig {
-  testRoots: readonly string[] | null;
-  verdict: RuleVerdict | null;
-}
+type LoadedConfig =
+  | { readonly ok: true; readonly testRoots: readonly string[] }
+  | { readonly ok: false; readonly verdict: RuleVerdict };
 
 async function loadConfig(facts: Facts, head: Oid): Promise<LoadedConfig> {
   const raw = await facts.fileAtRef(head, CONFIG_PATH);
   if (raw === null) {
     return {
-      testRoots: null,
+      ok: false,
       verdict: verdict("config", "Config", "info", [
         { message: `no ${CONFIG_PATH} at head — ceiling and evidence checks skipped` },
       ]),
@@ -29,7 +28,7 @@ async function loadConfig(facts: Facts, head: Oid): Promise<LoadedConfig> {
   const parsed = parseConfig(raw);
   if (!parsed.ok) {
     return {
-      testRoots: null,
+      ok: false,
       verdict: verdict(
         "config",
         "Config",
@@ -41,29 +40,24 @@ async function loadConfig(facts: Facts, head: Oid): Promise<LoadedConfig> {
       ),
     };
   }
-  return { testRoots: parsed.value.testRoots, verdict: null };
+  return { ok: true, testRoots: parsed.value.testRoots };
 }
 
 async function implementationRules(
   facts: Facts,
   base: Oid,
   head: Oid,
-  changes: PathChange[],
-): Promise<RuleVerdict[]> {
-  const rules: RuleVerdict[] = [];
+  changes: readonly PathChange[],
+): Promise<readonly RuleVerdict[]> {
   const binding = await validateBinding(facts, base, head, changes);
-  rules.push(binding.verdict);
-  if (binding.spec !== undefined && binding.flipPath !== undefined) {
-    const config = await loadConfig(facts, head);
-    if (config.verdict !== null) rules.push(config.verdict);
-    if (config.testRoots !== null) {
-      rules.push(checkCeiling(binding.spec, changes, binding.flipPath, config.testRoots));
-      rules.push(
-        checkEvidenceConsistency(binding.spec, changes, binding.flipPath, config.testRoots),
-      );
-    }
-  }
-  return rules;
+  if (!binding.ok) return [binding.verdict];
+  const config = await loadConfig(facts, head);
+  if (!config.ok) return [binding.verdict, config.verdict];
+  return [
+    binding.verdict,
+    checkCeiling(binding.spec, changes, binding.flipPath, config.testRoots),
+    checkEvidenceConsistency(binding.spec, changes, binding.flipPath, config.testRoots),
+  ];
 }
 
 /**
@@ -72,7 +66,11 @@ async function implementationRules(
  * shape (routes to the implementation lane, where binding validates it).
  * Content disambiguates: head status `delivered` means flip.
  */
-async function isFlipOnly(facts: Facts, head: Oid, changes: PathChange[]): Promise<boolean> {
+async function isFlipOnly(
+  facts: Facts,
+  head: Oid,
+  changes: readonly PathChange[],
+): Promise<boolean> {
   const only = changes.length === 1 ? changes[0] : undefined;
   if (only === undefined || only.kind !== "modified") return false;
   const content = await facts.fileAtRef(head, only.path);
@@ -90,20 +88,21 @@ async function isFlipOnly(facts: Facts, head: Oid, changes: PathChange[]): Promi
 export async function judge(facts: Facts, base: Oid, head: Oid): Promise<Verdicts> {
   const changes = await facts.pathsChanged(base, head);
   const lane = classifyLane(changes);
-  const rules: RuleVerdict[] = [lane.verdict];
 
   if (lane.lane === "spec") {
     if (await isFlipOnly(facts, head, changes)) {
-      rules[0] = verdict("lane", "Lane: implementation", "pass", [
+      const routed = verdict("lane", "Lane: implementation", "pass", [
         { message: "flip-only change routed to the implementation lane" },
       ]);
-      rules.push(...(await implementationRules(facts, base, head, changes)));
-    } else {
-      rules.push(await validateSpecLane(facts, head, changes));
+      return collectVerdicts([routed, ...(await implementationRules(facts, base, head, changes))]);
     }
-  } else if (lane.lane === "implementation") {
-    rules.push(...(await implementationRules(facts, base, head, changes)));
+    return collectVerdicts([lane.verdict, await validateSpecLane(facts, head, changes)]);
   }
-
-  return collectVerdicts(rules);
+  if (lane.lane === "implementation") {
+    return collectVerdicts([
+      lane.verdict,
+      ...(await implementationRules(facts, base, head, changes)),
+    ]);
+  }
+  return collectVerdicts([lane.verdict]);
 }

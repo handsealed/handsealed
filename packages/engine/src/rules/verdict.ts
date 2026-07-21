@@ -6,35 +6,48 @@
  * loud but non-gating (the badge/flag tier).
  */
 
+/** Every rule the judge can render — exhaustive, for consumers to switch on. */
+export type RuleId =
+  | "lane"
+  | "spec-lane"
+  | "binding"
+  | "config"
+  | "ceiling"
+  | "evidence"
+  | "acceptance"
+  | "cardinality"
+  | "reapproval"
+  | "revert";
+
 export type RuleStatus = "pass" | "fail" | "info" | "attention";
 
 export interface Finding {
-  message: string;
-  path?: string;
+  readonly message: string;
+  readonly path?: string;
 }
 
 export interface RuleVerdict {
-  rule: string;
-  title: string;
-  status: RuleStatus;
-  findings: Finding[];
+  readonly rule: RuleId;
+  readonly title: string;
+  readonly status: RuleStatus;
+  readonly findings: readonly Finding[];
 }
 
 export interface Verdicts {
-  overall: "pass" | "fail";
-  rules: RuleVerdict[];
+  readonly overall: "pass" | "fail";
+  readonly rules: readonly RuleVerdict[];
 }
 
 export function verdict(
-  rule: string,
+  rule: RuleId,
   title: string,
   status: RuleStatus,
-  findings: Finding[] = [],
+  findings: readonly Finding[] = [],
 ): RuleVerdict {
   return { rule, title, status, findings };
 }
 
-export function collectVerdicts(rules: RuleVerdict[]): Verdicts {
+export function collectVerdicts(rules: readonly RuleVerdict[]): Verdicts {
   return { overall: rules.some((r) => r.status === "fail") ? "fail" : "pass", rules };
 }
 

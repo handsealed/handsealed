@@ -17,7 +17,7 @@ const TITLE = "Evidence class";
  */
 export function checkEvidenceConsistency(
   spec: Spec,
-  changes: PathChange[],
+  changes: readonly PathChange[],
   flipPath: string,
   testRoots: readonly string[],
 ): RuleVerdict {

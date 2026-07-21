@@ -16,6 +16,7 @@ import type {
   FilePatch,
   MergeTreePreflight,
   Oid,
+  PatchFileId,
   PatchIdentity,
   PathChange,
   RangeDiffEntry,
@@ -81,12 +82,12 @@ function splitPatchText(raw: string): string[] {
     .map((chunk) => (chunk.endsWith("\n") ? chunk : `${chunk}\n`));
 }
 
-const HEADER = /^diff --git (?:"a\/(.+)"|a\/(.+)) (?:"b\/(.+)"|b\/(.+))$/;
+const HEADER = /^diff --git (?:"a\/(?:.+)"|a\/(?:.+)) (?:"b\/(?<quoted>.+)"|b\/(?<plain>.+))$/;
 
 function chunkPath(chunk: string): string {
   const firstLine = chunk.slice(0, chunk.indexOf("\n"));
-  const match = HEADER.exec(firstLine);
-  const path = match?.[3] ?? match?.[4];
+  const groups = HEADER.exec(firstLine)?.groups;
+  const path = groups?.["quoted"] ?? groups?.["plain"];
   if (path === undefined) throw new Error(`unparseable patch header: ${firstLine}`);
   return path;
 }
@@ -94,7 +95,8 @@ function chunkPath(chunk: string): string {
 const isBinaryChunk = (chunk: string): boolean =>
   chunk.includes("\nBinary files ") || chunk.includes("\nGIT binary patch");
 
-const RANGE_LINE = /^\s*(\d+|-+):\s+\S+\s+([=!<>])\s+(\d+|-+):\s+\S+(?:\s+(.*))?$/;
+const RANGE_LINE =
+  /^\s*(?:\d+|-+):\s+\S+\s+(?<marker>[=!<>])\s+(?:\d+|-+):\s+\S+(?:\s+(?<subject>.*))?$/;
 const MARKERS: Record<string, RangeDiffMarker> = {
   "=": "equal",
   "!": "modified",
@@ -175,18 +177,17 @@ export function createGitFacts(repoDir: string): Facts {
     async patchOf(base: Oid, head: Oid): Promise<FilePatch[]> {
       const [changes, raw] = await Promise.all([pathsChanged(base, head), patchText(base, head)]);
       const byPath = new Map(changes.map((c) => [c.path, c]));
-      return splitPatchText(raw).map((chunk) => {
+      return splitPatchText(raw).map((chunk): FilePatch => {
         const path = chunkPath(chunk);
         const change = byPath.get(path);
         const binary = isBinaryChunk(chunk);
-        const patch: FilePatch = {
+        return {
           path,
           kind: change?.kind ?? "modified",
           text: binary ? "" : chunk,
           binary,
+          ...(change?.fromPath !== undefined ? { fromPath: change.fromPath } : {}),
         };
-        if (change?.fromPath !== undefined) patch.fromPath = change.fromPath;
-        return patch;
       });
     },
 
@@ -213,7 +214,7 @@ export function createGitFacts(repoDir: string): Facts {
       const raw = await patchText(base, head);
       const chunks = splitPatchText(raw);
       const combined = await patchIdFor(raw);
-      const files: PatchIdentity["files"] = [];
+      const files: PatchFileId[] = [];
       for (const chunk of chunks) {
         const id = await patchIdFor(chunk);
         files.push({
@@ -237,17 +238,16 @@ export function createGitFacts(repoDir: string): Facts {
       );
       const entries: RangeDiffEntry[] = [];
       for (const line of raw.split("\n")) {
-        const match = RANGE_LINE.exec(line);
-        if (match === null) continue;
-        const marker = MARKERS[match[2] ?? ""];
+        const groups = RANGE_LINE.exec(line)?.groups;
+        if (groups === undefined) continue;
+        const marker = MARKERS[groups["marker"] ?? ""];
         if (marker === undefined) continue;
-        const subject = (match[4] ?? "").trim();
-        const entry: RangeDiffEntry = { marker };
-        if (subject !== "") {
-          if (marker === "only-in-old") entry.oldSubject = subject;
-          else entry.newSubject = subject;
-        }
-        entries.push(entry);
+        const subject = (groups["subject"] ?? "").trim();
+        entries.push({
+          marker,
+          ...(subject !== "" && marker === "only-in-old" ? { oldSubject: subject } : {}),
+          ...(subject !== "" && marker !== "only-in-old" ? { newSubject: subject } : {}),
+        });
       }
       return entries;
     },
