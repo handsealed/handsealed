@@ -1,4 +1,4 @@
-import type { Facts, Oid, PathChange } from "./facts.js";
+import type { Facts, Oid, PathChange } from "@handsealed/facts";
 import { parseConfig } from "./formats/config.js";
 import { parseSpec } from "./formats/spec.js";
 import { validateBinding } from "./rules/binding.js";

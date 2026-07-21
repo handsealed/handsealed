@@ -1,4 +1,4 @@
-import type { ChangeKind, Facts, Oid, PathChange } from "../facts.js";
+import type { ChangeKind, Facts, Oid, PathChange } from "@handsealed/facts";
 import { isValidSpecFilename, parseSpec, type Spec } from "../formats/spec.js";
 import { SPECS_DIR } from "./lane.js";
 import type { Finding, RuleVerdict } from "./verdict.js";

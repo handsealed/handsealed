@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
-import type { PathChange } from "../facts.js";
+import type { PathChange } from "@handsealed/facts";
 import { validateSpecLane } from "./spec-lane.js";
 
 const factsWith = (files: Record<string, string>) => memoryFacts({ files });

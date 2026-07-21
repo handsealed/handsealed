@@ -1,4 +1,4 @@
-import type { PathChange } from "../facts.js";
+import type { PathChange } from "@handsealed/facts";
 import type { RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 

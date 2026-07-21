@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
-import type { PatchIdentity } from "../facts.js";
+import type { PatchIdentity } from "@handsealed/facts";
 import { checkRevert } from "./revert.js";
 
 const factsWithIds = (patchIds: Record<string, PatchIdentity>) => memoryFacts({ patchIds });

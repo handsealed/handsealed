@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import type { PathChange } from "../facts.js";
+import type { PathChange } from "@handsealed/facts";
 import type { EvidenceClass, Spec } from "../formats/spec.js";
 import { checkEvidenceConsistency } from "./evidence.js";
 

@@ -1,4 +1,4 @@
-import type { CommitRange, Facts, Oid } from "../facts.js";
+import type { CommitRange, Facts, Oid } from "@handsealed/facts";
 import type { RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 
