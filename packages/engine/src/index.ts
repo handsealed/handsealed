@@ -24,3 +24,16 @@ export type {
   RangeDiffEntry,
   RangeDiffMarker,
 } from "./facts.js";
+export { SPECS_DIR, classifyLane } from "./rules/lane.js";
+export type { Lane, LaneResult } from "./rules/lane.js";
+export { validateBinding } from "./rules/binding.js";
+export type { BindingResult } from "./rules/binding.js";
+export { checkCeiling } from "./rules/ceiling.js";
+export { checkEvidenceConsistency } from "./rules/evidence.js";
+export { mapAcceptance } from "./rules/acceptance.js";
+export { compareCardinality } from "./rules/cardinality.js";
+export { reapprovalFact } from "./rules/reapproval.js";
+export { checkRevert } from "./rules/revert.js";
+export { globToRegExp, matchesAny, matchesPattern } from "./rules/glob.js";
+export { collectVerdicts, renderMarkdown, verdict } from "./rules/verdict.js";
+export type { Finding, RuleStatus, RuleVerdict, Verdicts } from "./rules/verdict.js";
