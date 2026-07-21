@@ -1,0 +1,52 @@
+# Tag-triggered npm publish with provenance. Push a `v<version>` tag whose
+# version matches every package; the three packages publish in dependency
+# order, each with an npm provenance attestation binding it to this repo,
+# this workflow, and the tagged commit.
+#
+# Auth: the NPM_TOKEN repository secret (granular automation token scoped to
+# the @handsealed org). Once the packages exist, switch them to npm trusted
+# publishing (OIDC) on npmjs.com and delete the token.
+name: Publish
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - name: Check the tag matches every package version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          node -e '
+            const version = process.env.TAG.replace(/^v/, "");
+            for (const dir of ["engine", "facts-git", "verifier"]) {
+              const pkg = require(`./packages/${dir}/package.json`);
+              if (pkg.version !== version) {
+                console.error(`${pkg.name} is ${pkg.version} but the tag is ${version}`);
+                process.exit(1);
+              }
+            }
+            console.log(`ok - all packages at ${version}`);
+          '
+      - name: Publish in dependency order
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm publish -w packages/engine
+          npm publish -w packages/facts-git
+          npm publish -w packages/verifier
