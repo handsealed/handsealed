@@ -1,0 +1,11 @@
+version: 1
+suites:
+  workspace:
+    run: 'npm run build && HANDSEALED_SUITE=workspace node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=@handsealed/verifier/reporter --test-reporter-destination=.handsealed/workspace-results.json "packages/*/dist/**/*.test.js" "scripts/**/*.test.mjs"'
+    results: .handsealed/workspace-results.json
+testRoots:
+  - "packages/*/src/**/*.test.ts"
+  - "scripts/*.test.mjs"
+verificationSurface:
+  - package.json
+  - tsconfig.base.json
