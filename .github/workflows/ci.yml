@@ -39,6 +39,64 @@ jobs:
       - run: npm run fmt:check
       - run: npm test
 
+  consume:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Pack every package and consume it as a stranger would
+        env:
+          PACKDIR: ${{ runner.temp }}/tarballs
+          CONSUME: ${{ runner.temp }}/consume
+        run: |
+          set -eu
+          mkdir -p "$PACKDIR" "$CONSUME"
+          for name in facts engine facts-git verifier; do
+            npm pack -w "packages/$name" --pack-destination "$PACKDIR"
+          done
+          cd "$CONSUME"
+          node -e '
+            const { readdirSync, writeFileSync } = require("node:fs");
+            const dir = process.env.PACKDIR;
+            const tarball = (prefix) => {
+              const found = readdirSync(dir).find((f) => f.startsWith(prefix));
+              if (found === undefined) {
+                console.error(`no tarball matching ${prefix}`);
+                process.exit(1);
+              }
+              return `file:${dir}/${found}`;
+            };
+            const overrides = {
+              "@handsealed/facts": tarball("handsealed-facts-0"),
+              "@handsealed/engine": tarball("handsealed-engine-"),
+              "@handsealed/facts-git": tarball("handsealed-facts-git-"),
+              "@handsealed/verifier": tarball("handsealed-verifier-"),
+            };
+            writeFileSync(
+              "package.json",
+              JSON.stringify(
+                {
+                  name: "consume-smoke",
+                  private: true,
+                  dependencies: { "@handsealed/verifier": overrides["@handsealed/verifier"] },
+                  overrides,
+                },
+                null,
+                2,
+              ),
+            );
+          '
+          npm install --no-audit --no-fund
+          printf 'version: 1\nsuites:\n  demo:\n    run: cp pre.json demo.json\n    results: demo.json\ntestRoots:\n  - test\n' > .handsealed.yml
+          printf '{"version":1,"suite":"demo","cases":[{"name":"a","outcome":"pass"}]}' > pre.json
+          ./node_modules/.bin/handsealed evidence run
+          ./node_modules/.bin/handsealed spec new consume smoke
+
   handsealed:
     runs-on: ubuntu-latest
     steps:

@@ -33,8 +33,9 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           node -e '
+            const { readdirSync } = require("node:fs");
             const version = process.env.TAG.replace(/^v/, "");
-            for (const dir of ["engine", "facts-git", "verifier"]) {
+            for (const dir of readdirSync("packages")) {
               const pkg = require(`./packages/${dir}/package.json`);
               if (pkg.version !== version) {
                 console.error(`${pkg.name} is ${pkg.version} but the tag is ${version}`);
@@ -47,6 +48,14 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          npm publish -w packages/engine
-          npm publish -w packages/facts-git
-          npm publish -w packages/verifier
+          ORDER="facts engine facts-git verifier"
+          for dir in packages/*/; do
+            name=$(basename "$dir")
+            case " $ORDER " in
+              *" $name "*) ;;
+              *) echo "package $name is missing from the publish order"; exit 1;;
+            esac
+          done
+          for name in $ORDER; do
+            npm publish -w "packages/$name"
+          done
