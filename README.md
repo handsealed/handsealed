@@ -4,6 +4,8 @@
 
 > Machines make the change; a human hand seals it — and the seal is verifiable forever.
 
+**Self-sealed:** every change to this repository ships under a mandate in `specs/`, judged by its own published CLI in CI.
+
 **Status: pre-alpha.** This repository is the open-core trust engine — the rules, the git facts adapter, and the offline verifier. Nothing here is ready for use yet; the first milestone is the engine itself, dogfooded on a real production repository before anyone else touches it.
 
 ## Packages
