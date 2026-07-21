@@ -61,4 +61,4 @@ jobs:
             echo "pre-seal base — skipped"
             exit 0
           fi
-          npx --yes "@handsealed/verifier@0.1.0" verify --base "$BASE" --head "$HEAD"
+          npm exec --yes --package="@handsealed/verifier@0.1.0" -- handsealed verify --base "$BASE" --head "$HEAD"
