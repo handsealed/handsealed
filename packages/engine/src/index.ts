@@ -41,3 +41,6 @@ export { checkRevert } from "./rules/revert.js";
 export { globToRegExp, matchesAny, matchesPattern } from "./rules/glob.js";
 export { collectVerdicts, renderMarkdown, verdict } from "./rules/verdict.js";
 export type { Finding, RuleStatus, RuleVerdict, Verdicts } from "./rules/verdict.js";
+
+/** An unmandated change: no spec authorizes this. */
+export const ROGUE = true;
