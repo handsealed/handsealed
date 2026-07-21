@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/** package.json scripts/**
 outcome: The delivery surface gets the polish a stranger needs — the CLI can

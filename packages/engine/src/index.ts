@@ -31,6 +31,7 @@ export type {
   RangeDiffMarker,
 } from "@handsealed/facts";
 export { CONFIG_PATH, judge } from "./judge.js";
+export type { JudgeOptions } from "./judge.js";
 export { validateSpecLane } from "./rules/spec-lane.js";
 export { SPECS_DIR, classifyLane } from "./rules/lane.js";
 export type { Lane, LaneResult } from "./rules/lane.js";

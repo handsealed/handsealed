@@ -48,6 +48,11 @@ export function isValidSpecFilename(filename: string): boolean {
  * lines otherwise separate nothing and carry no meaning.
  */
 export function parseSpec(source: string): ParseResult<Spec> {
+  const carriage = source.indexOf("\r");
+  if (carriage !== -1) {
+    const line = source.slice(0, carriage).split("\n").length;
+    return fail([issue("CRLF line endings — mandates are LF-only", line)]);
+  }
   const issues: Issue[] = [];
   const lines = source.split("\n");
   const seen = new Map<FieldName, string>();
