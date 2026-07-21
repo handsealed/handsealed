@@ -1,0 +1,54 @@
+# The thin Handsealed evidence workflow (reusable).
+#
+# Runs on the customer's own runners against a `delivery/evidence/*` branch:
+# every configured suite executes, red tests are evidence (never a job
+# failure), and the validated result files upload as one artifact. What
+# fails the job — fail-closed — is missing or unparseable evidence.
+#
+# Caller (in your repository), pinned by SHA:
+#
+#   name: Handsealed evidence
+#   on:
+#     push:
+#       branches: ["delivery/evidence/**"]
+#   jobs:
+#     evidence:
+#       uses: handsealed/handsealed/.github/workflows/evidence.yml@<pinned-sha>
+#
+name: Handsealed evidence
+
+on:
+  workflow_call:
+    inputs:
+      verifier-version:
+        description: "@handsealed/verifier version to run"
+        type: string
+        required: false
+        default: latest
+      node-version:
+        description: "Node.js version for the runner"
+        type: string
+        required: false
+        default: "22"
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Run suites and collect evidence
+        env:
+          VERIFIER_VERSION: ${{ inputs.verifier-version }}
+        run: npx --yes "@handsealed/verifier@${VERIFIER_VERSION}" evidence run
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: handsealed-results
+          path: .handsealed/results/
+          if-no-files-found: error

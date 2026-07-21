@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import { judge, renderMarkdown } from "@handsealed/engine";
 import { createGitFacts } from "@handsealed/facts-git";
+import { evidenceRun, renderEvidenceSummary } from "./commands/evidence.js";
 import { buildNodeTestArgs } from "./commands/results.js";
 import { specNew } from "./commands/spec-new.js";
 
@@ -20,6 +21,9 @@ commands:
       Mint an open mandate with a sortable, collision-proof filename.
   results emit-node [--suite <name>] [--out <file>] [--] [paths...]
       Run node:test with the handsealed reporter attached.
+  evidence run [--dir <cwd>]
+      Run every configured suite and collect result files. Red tests are
+      evidence, not errors; missing evidence fails closed.
 `;
 
 async function runVerify(argv: string[]): Promise<number> {
@@ -90,12 +94,25 @@ async function runResults(argv: string[]): Promise<number> {
   });
 }
 
+async function runEvidence(argv: string[]): Promise<number> {
+  const [sub, ...rest] = argv;
+  if (sub !== "run") {
+    process.stderr.write(USAGE);
+    return 2;
+  }
+  const { values } = parseArgs({ args: rest, options: { dir: { type: "string", default: "." } } });
+  const outcome = await evidenceRun(values.dir ?? ".");
+  process.stdout.write(renderEvidenceSummary(outcome));
+  return outcome.ok ? 0 : 1;
+}
+
 async function main(): Promise<number> {
   const [command, ...rest] = process.argv.slice(2);
   try {
     if (command === "verify") return await runVerify(rest);
     if (command === "spec") return runSpec(rest);
     if (command === "results") return await runResults(rest);
+    if (command === "evidence") return await runEvidence(rest);
   } catch (error) {
     process.stderr.write(`handsealed: ${(error as Error).message}\n`);
     return 2;
