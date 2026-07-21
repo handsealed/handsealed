@@ -138,6 +138,17 @@ for (const fixture of INVALID) {
   });
 }
 
+test("[01ky2zt4z52xsr-polish-the-delivery-surface#2] adversarial: a CRLF spec is rejected with a single clear issue", () => {
+  const result = parseSpec(
+    "status: open\r\nevidence: exempt\r\noutcome: X.\r\nacceptance:\r\n- A.\r\n",
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.issues.length, 1);
+    assert.match(result.issues[0]?.message ?? "", /LF-only/);
+  }
+});
+
 test("spec filenames: sortable base32 prefix + kebab slug", () => {
   for (const good of [
     "01k0h3v8-match-coin-toast.md",

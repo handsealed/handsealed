@@ -3,6 +3,7 @@ import { parseConfig } from "./formats/config.js";
 import { parseSpec, type Spec } from "./formats/spec.js";
 import { extractMarkers, mapAcceptance } from "./rules/acceptance.js";
 import { validateBinding } from "./rules/binding.js";
+import { reapprovalFact } from "./rules/reapproval.js";
 import { checkCeiling } from "./rules/ceiling.js";
 import { checkEvidenceConsistency } from "./rules/evidence.js";
 import { matchesAny } from "./rules/glob.js";
@@ -137,30 +138,55 @@ async function isFlipOnly(
   return parsed.ok && parsed.value.status === "delivered";
 }
 
-/**
- * The offline judge: the static rule set over a base..head range — lane,
- * then per lane: spec validation, or binding + config + ceiling + evidence
- * + acceptance. This exact composition is what every surface replays;
- * the CLI and any hosted judge are thin shells over it.
- */
-export async function judge(facts: Facts, base: Oid, head: Oid): Promise<Verdicts> {
-  const changes = await facts.pathsChanged(base, head);
-  const lane = classifyLane(changes);
+export interface JudgeOptions {
+  /** A previously approved head: the re-approval fact states what moved since. */
+  readonly approved?: Oid;
+}
 
+async function laneRules(
+  facts: Facts,
+  base: Oid,
+  head: Oid,
+  changes: readonly PathChange[],
+): Promise<readonly RuleVerdict[]> {
+  const lane = classifyLane(changes);
   if (lane.lane === "spec") {
     if (await isFlipOnly(facts, head, changes)) {
       const routed = verdict("lane", "Lane: implementation", "pass", [
         { message: "flip-only change routed to the implementation lane" },
       ]);
-      return collectVerdicts([routed, ...(await implementationRules(facts, base, head, changes))]);
+      return [routed, ...(await implementationRules(facts, base, head, changes))];
     }
-    return collectVerdicts([lane.verdict, await validateSpecLane(facts, base, head, changes)]);
+    return [lane.verdict, await validateSpecLane(facts, base, head, changes)];
   }
   if (lane.lane === "implementation") {
-    return collectVerdicts([
-      lane.verdict,
-      ...(await implementationRules(facts, base, head, changes)),
-    ]);
+    return [lane.verdict, ...(await implementationRules(facts, base, head, changes))];
   }
-  return collectVerdicts([lane.verdict]);
+  return [lane.verdict];
+}
+
+/**
+ * The offline judge: the static rule set over a base..head range — lane,
+ * then per lane: spec validation, or binding + config + ceiling + evidence
+ * + acceptance; with `approved`, the re-approval fact is appended. This
+ * exact composition is what every surface replays; the CLI and any hosted
+ * judge are thin shells over it.
+ */
+export async function judge(
+  facts: Facts,
+  base: Oid,
+  head: Oid,
+  options: JudgeOptions = {},
+): Promise<Verdicts> {
+  const changes = await facts.pathsChanged(base, head);
+  const rules = [...(await laneRules(facts, base, head, changes))];
+  if (options.approved !== undefined) {
+    rules.push(
+      reapprovalFact(
+        await facts.patchIdOf(base, options.approved),
+        await facts.patchIdOf(base, head),
+      ),
+    );
+  }
+  return collectVerdicts(rules);
 }

@@ -102,6 +102,50 @@ test("the CLI reproduces the library judge bit-identically, pass and fail", asyn
   }
 });
 
+test("[01ky2zt4z52xsr-polish-the-delivery-surface#1] verify --approved appends the re-approval fact", async () => {
+  const repo = createRepo();
+  try {
+    const base = repo.commit({
+      message: "chore: base",
+      files: { ".handsealed.yml": CONFIG, [FLIP]: OPEN },
+    });
+    const approved = repo.commit({
+      message: "feat: first cut",
+      files: { [FLIP]: DELIVERED, "test/a.test.ts": "// [01k0h3v8-do-thing#1]\n" },
+    });
+    const head = repo.commit({
+      message: "fix: address review",
+      files: { "src/late.ts": "export const late = 1;\n" },
+    });
+    const facts = createGitFacts(repo.dir);
+    const library = await judge(facts, base, head, { approved });
+    const cli = await runCli([
+      "verify",
+      "--repo",
+      repo.dir,
+      "--base",
+      base,
+      "--head",
+      head,
+      "--approved",
+      approved,
+      "--json",
+    ]);
+    assert.equal(cli.code, 0, cli.stderr);
+    assert.equal(cli.stdout.trim(), JSON.stringify(library));
+    const reapproval = library.rules.find((r) => r.rule === "reapproval");
+    assert.equal(reapproval?.status, "attention");
+    assert.equal(
+      reapproval?.findings.some(
+        (f) => f.path === "src/late.ts" && f.message === "new since approval",
+      ),
+      true,
+    );
+  } finally {
+    repo.dispose();
+  }
+});
+
 test("the markdown mode renders the verdict and usage errors exit 2", async () => {
   const repo = createRepo();
   try {

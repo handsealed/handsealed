@@ -15,8 +15,9 @@ import { specNew } from "./commands/spec-new.js";
 const USAGE = `handsealed <command>
 
 commands:
-  verify --base <rev> --head <rev> [--repo <dir>] [--json]
+  verify --base <rev> --head <rev> [--approved <rev>] [--repo <dir>] [--json]
       Replay the offline judge over base..head. Exit 0 pass, 1 fail.
+      With --approved, the re-approval fact states what moved since that head.
   spec new <words...> [--dir specs]
       Mint an open mandate with a sortable, collision-proof filename.
   results emit-node [--suite <name>] [--out <file>] [--] [paths...]
@@ -32,6 +33,7 @@ async function runVerify(argv: string[]): Promise<number> {
     options: {
       base: { type: "string" },
       head: { type: "string" },
+      approved: { type: "string" },
       repo: { type: "string", default: "." },
       json: { type: "boolean", default: false },
     },
@@ -41,7 +43,12 @@ async function runVerify(argv: string[]): Promise<number> {
     return 2;
   }
   const facts = createGitFacts(values.repo ?? ".");
-  const verdicts = await judge(facts, values.base, values.head);
+  const verdicts = await judge(
+    facts,
+    values.base,
+    values.head,
+    values.approved === undefined ? {} : { approved: values.approved },
+  );
   process.stdout.write(
     values.json === true ? `${JSON.stringify(verdicts)}\n` : renderMarkdown(verdicts),
   );

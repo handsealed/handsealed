@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && node scripts/executable-bins.mjs",
     "test": "npm run build && node --test \"packages/*/dist/**/*.test.js\" \"scripts/**/*.test.mjs\"",
     "lint": "oxlint packages scripts",
     "fmt": "oxfmt packages scripts",
