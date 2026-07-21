@@ -1,0 +1,24 @@
+{
+  "name": "@handsealed/engine",
+  "version": "0.0.0",
+  "description": "Handsealed's deterministic trust rules: lanes, mandate binding, scope ceilings, evidence classes, verdicts.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/handsealed/handsealed.git",
+    "directory": "packages/engine"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

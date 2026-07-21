@@ -1,0 +1,24 @@
+{
+  "name": "@handsealed/verifier",
+  "version": "0.0.0",
+  "description": "The Handsealed CLI: replay every verdict offline against a clone. Don't trust us — verify.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/handsealed/handsealed.git",
+    "directory": "packages/verifier"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
