@@ -1,6 +1,6 @@
 {
   "name": "@handsealed/facts-git",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The single git facts implementation for Handsealed: plumbing-only, bare-clone-compatible.",
   "license": "Apache-2.0",
   "repository": {
@@ -22,8 +22,12 @@
       "default": "./dist/testing/harness.js"
     }
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "dependencies": {
-    "@handsealed/engine": "0.0.0"
+    "@handsealed/engine": "^0.1.0"
   },
   "engines": {
     "node": ">=22"
