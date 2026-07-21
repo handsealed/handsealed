@@ -4,6 +4,11 @@ import { verdict } from "./verdict.js";
 const TITLE = "Acceptance map";
 const MARKER = /\[([0-9abcdefghjkmnpqrstvwxyz]{8,26}-[a-z0-9-]+)#(\d+)\]/g;
 
+/** Every acceptance-marker occurrence in a blob of text (e.g. a changed test file). */
+export function extractMarkers(text: string): string[] {
+  return [...text.matchAll(MARKER)].map((match) => match[0]);
+}
+
 /**
  * Tests claim the acceptance bullet they cover by carrying a marker in
  * their name: `[<spec-slug>#<bullet-number>]` (1-based). Totality both ways:

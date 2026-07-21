@@ -12,20 +12,39 @@ const added = (path: string, kind: PathChange["kind"] = "added"): PathChange => 
 
 test("valid open specs pass", async () => {
   const facts = factsWith({ [`h:${PATH}`]: OPEN });
-  const result = await validateSpecLane(facts, "h", [added(PATH)]);
+  const result = await validateSpecLane(facts, "b", "h", [added(PATH)]);
   assert.equal(result.status, "pass");
 });
 
 test("adversarial: a spec-lane change may not deliver its own mandate", async () => {
   const facts = factsWith({ [`h:${PATH}`]: OPEN.replace("status: open", "status: delivered") });
-  const result = await validateSpecLane(facts, "h", [added(PATH)]);
+  const result = await validateSpecLane(facts, "b", "h", [added(PATH)]);
   assert.equal(result.status, "fail");
   assert.match(result.findings[0]?.message ?? "", /flips happen in implementation changes/);
 });
 
+test("adversarial: a delivered mandate is immutable — reopening it is refused", async () => {
+  const facts = factsWith({
+    [`b:${PATH}`]: OPEN.replace("status: open", "status: delivered"),
+    [`h:${PATH}`]: OPEN,
+  });
+  const result = await validateSpecLane(facts, "b", "h", [added(PATH, "modified")]);
+  assert.equal(result.status, "fail");
+  assert.match(result.findings[0]?.message ?? "", /immutable history/);
+});
+
+test("an amendment to a still-open mandate passes", async () => {
+  const facts = factsWith({
+    [`b:${PATH}`]: OPEN,
+    [`h:${PATH}`]: OPEN.replace("Do the thing.", "Do the amended thing."),
+  });
+  const result = await validateSpecLane(facts, "b", "h", [added(PATH, "modified")]);
+  assert.equal(result.status, "pass");
+});
+
 test("deletes, renames, bad filenames, and unparseable specs fail by name", async () => {
   const facts = factsWith({ [`h:specs/42-bad.md`]: OPEN, [`h:${PATH}`]: "garbage\n" });
-  const result = await validateSpecLane(facts, "h", [
+  const result = await validateSpecLane(facts, "b", "h", [
     added("specs/01k0h3v9-old.md", "deleted"),
     added("specs/42-bad.md"),
     added(PATH, "modified"),

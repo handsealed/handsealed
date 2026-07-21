@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/**
 outcome: The judge closes two adversarial holes and activates a dormant rule — spec-lane changes may never reopen delivered mandates, the judging config is read at base so a change cannot edit its own rulebook, and additive mandates must claim their acceptance bullets via markers in changed test files.
