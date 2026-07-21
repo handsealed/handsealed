@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
-import type { PathChange } from "./facts.js";
+import type { PathChange } from "@handsealed/facts";
 import { judge } from "./judge.js";
 
 const OPEN = `status: open\nevidence: additive\npaths: src/**\noutcome: Do the thing.\nacceptance:\n- It works.\n`;

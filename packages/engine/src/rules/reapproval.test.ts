@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import type { PatchIdentity } from "../facts.js";
+import type { PatchIdentity } from "@handsealed/facts";
 import { reapprovalFact } from "./reapproval.js";
 
 const identity = (combined: string, files: Array<[string, string]>): PatchIdentity => ({

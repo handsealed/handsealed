@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
-import type { PathChange } from "../facts.js";
+import type { PathChange } from "@handsealed/facts";
 import { validateBinding } from "./binding.js";
 
 const stub = memoryFacts();

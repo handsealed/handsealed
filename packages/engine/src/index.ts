@@ -1,6 +1,3 @@
-/** The engine's package identity, used by consumers to assert version/provenance expectations. */
-export const PACKAGE_NAME = "@handsealed/engine";
-
 export type { Issue, ParseResult } from "./formats/issues.js";
 export {
   EVIDENCE_CLASSES,
@@ -32,7 +29,7 @@ export type {
   PathChange,
   RangeDiffEntry,
   RangeDiffMarker,
-} from "./facts.js";
+} from "@handsealed/facts";
 export { CONFIG_PATH, judge } from "./judge.js";
 export { validateSpecLane } from "./rules/spec-lane.js";
 export { SPECS_DIR, classifyLane } from "./rules/lane.js";

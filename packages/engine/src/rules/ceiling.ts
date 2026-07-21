@@ -1,4 +1,4 @@
-import type { PathChange } from "../facts.js";
+import type { PathChange } from "@handsealed/facts";
 import type { Spec } from "../formats/spec.js";
 import { matchesAny } from "./glob.js";
 import type { RuleVerdict } from "./verdict.js";

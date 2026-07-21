@@ -1,4 +1,4 @@
-import type { PatchIdentity } from "../facts.js";
+import type { PatchIdentity } from "@handsealed/facts";
 import type { Finding, RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 
