@@ -21,7 +21,7 @@ import type {
   PathChange,
   RangeDiffEntry,
   RangeDiffMarker,
-} from "@handsealed/engine";
+} from "@handsealed/facts";
 
 const execFileP = promisify(execFile);
 const MAX_BUFFER = 64 * 1024 * 1024;

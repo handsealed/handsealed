@@ -1,21 +1,10 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import type { Facts, PathChange } from "../facts.js";
+import { memoryFacts } from "@handsealed/facts/memory";
+import type { PathChange } from "../facts.js";
 import { validateSpecLane } from "./spec-lane.js";
 
-const never = async (): Promise<never> => {
-  throw new Error("unused in this test");
-};
-const factsWith = (files: Record<string, string>): Facts => ({
-  pathsChanged: never,
-  patchOf: never,
-  isAncestor: never,
-  mergeBase: never,
-  patchIdOf: never,
-  rangeDiff: never,
-  mergeTreePreflight: never,
-  fileAtRef: async (rev, path) => files[`${rev}:${path}`] ?? null,
-});
+const factsWith = (files: Record<string, string>) => memoryFacts({ files });
 
 const OPEN = `status: open\nevidence: additive\noutcome: Do the thing.\nacceptance:\n- It works.\n`;
 const PATH = "specs/01k0h3v8-do-thing.md";
