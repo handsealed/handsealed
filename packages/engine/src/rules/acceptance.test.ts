@@ -1,8 +1,17 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { mapAcceptance } from "./acceptance.js";
+import { extractMarkers, mapAcceptance } from "./acceptance.js";
 
 const SLUG = "01k0h3v8-do-thing";
+
+test("extractMarkers finds every marker in a blob of test-file content", () => {
+  const content = `test("[${SLUG}#1] works", () => {});\n// [01k0h3v9-other#2]\nno marker here\n`;
+  assert.deepEqual(extractMarkers(content), [`[${SLUG}#1]`, "[01k0h3v9-other#2]"]);
+});
+
+test("extractMarkers ignores near-misses", () => {
+  assert.deepEqual(extractMarkers("[SHORT#1] [01k0h3v8-do-thing] [#2]"), []);
+});
 
 test("full coverage passes with claim counts", () => {
   const result = mapAcceptance(SLUG, 2, [
