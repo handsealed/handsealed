@@ -12,3 +12,15 @@ export {
 export type { EvidenceClass, Spec, SpecStatus } from "./formats/spec.js";
 export { parseConfig } from "./formats/config.js";
 export type { HandsealedConfig, SuiteConfig } from "./formats/config.js";
+export type {
+  ChangeKind,
+  CommitRange,
+  Facts,
+  FilePatch,
+  MergeTreePreflight,
+  Oid,
+  PatchIdentity,
+  PathChange,
+  RangeDiffEntry,
+  RangeDiffMarker,
+} from "./facts.js";

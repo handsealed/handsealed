@@ -16,7 +16,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/harness.d.ts",
+      "default": "./dist/testing/harness.js"
     }
+  },
+  "dependencies": {
+    "@handsealed/engine": "0.0.0"
   },
   "engines": {
     "node": ">=22"
