@@ -26,6 +26,8 @@ export type {
   RangeDiffEntry,
   RangeDiffMarker,
 } from "./facts.js";
+export { CONFIG_PATH, judge } from "./judge.js";
+export { validateSpecLane } from "./rules/spec-lane.js";
 export { SPECS_DIR, classifyLane } from "./rules/lane.js";
 export type { Lane, LaneResult } from "./rules/lane.js";
 export { validateBinding } from "./rules/binding.js";
