@@ -45,7 +45,9 @@ jobs:
       - name: Run suites and collect evidence
         env:
           VERIFIER_VERSION: ${{ inputs.verifier-version }}
-        run: npm exec --yes --package="@handsealed/verifier@${VERIFIER_VERSION}" -- handsealed evidence run
+        run: |
+          npm install --no-save --prefix "$RUNNER_TEMP/handsealed" "@handsealed/verifier@${VERIFIER_VERSION}"
+          node "$RUNNER_TEMP/handsealed/node_modules/@handsealed/verifier/dist/cli.js" evidence run
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
