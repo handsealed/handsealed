@@ -20,8 +20,9 @@ export function checkEvidenceConsistency(
   changes: readonly PathChange[],
   flipPath: string,
   testRoots: readonly string[],
+  exemptPaths: readonly string[] = [],
 ): RuleVerdict {
-  const rest = changes.filter((c) => c.path !== flipPath);
+  const rest = changes.filter((c) => c.path !== flipPath && !matchesAny(c.path, exemptPaths));
   const testChanges = rest.filter((c) => matchesAny(c.path, testRoots));
   const productChanges = rest.filter((c) => !matchesAny(c.path, testRoots));
 

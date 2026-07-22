@@ -8,14 +8,16 @@ const TITLE = "Scope ceiling";
 
 /**
  * The `paths:` ceiling is the approved blast radius. Every changed product
- * path must fall inside it; test roots are always allowed; the flip itself
- * is exempt. No declared ceiling means no ceiling — stated, not implied.
+ * path must fall inside it; test roots and the config's exempt paths are
+ * always allowed; the flip itself is exempt. No declared ceiling means no
+ * ceiling — stated, not implied.
  */
 export function checkCeiling(
   spec: Spec,
   changes: readonly PathChange[],
   flipPath: string,
   testRoots: readonly string[],
+  exemptPaths: readonly string[] = [],
 ): RuleVerdict {
   const ceiling = spec.paths;
   if (ceiling === undefined || ceiling.length === 0) {
@@ -24,7 +26,9 @@ export function checkCeiling(
   const breaches = changes.filter((change) => {
     if (change.path === flipPath) return false;
     const paths = change.fromPath === undefined ? [change.path] : [change.path, change.fromPath];
-    return paths.some((p) => !matchesAny(p, testRoots) && !matchesAny(p, ceiling));
+    return paths.some(
+      (p) => !matchesAny(p, testRoots) && !matchesAny(p, exemptPaths) && !matchesAny(p, ceiling),
+    );
   });
   if (breaches.length > 0) {
     return verdict(
