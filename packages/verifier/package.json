@@ -1,6 +1,6 @@
 {
   "name": "@handsealed/verifier",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The Handsealed CLI: replay every verdict offline against a clone. Don't trust us — verify.",
   "license": "Apache-2.0",
   "repository": {
@@ -26,8 +26,8 @@
     "provenance": true
   },
   "dependencies": {
-    "@handsealed/engine": "^0.2.0",
-    "@handsealed/facts-git": "^0.2.0"
+    "@handsealed/engine": "^0.3.0",
+    "@handsealed/facts-git": "^0.3.0"
   },
   "engines": {
     "node": ">=22"
