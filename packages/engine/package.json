@@ -1,6 +1,6 @@
 {
   "name": "@handsealed/engine",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Handsealed's deterministic trust rules: lanes, mandate binding, scope ceilings, evidence classes, verdicts.",
   "license": "Apache-2.0",
   "repository": {
@@ -23,7 +23,7 @@
     "provenance": true
   },
   "dependencies": {
-    "@handsealed/facts": "^0.2.0",
+    "@handsealed/facts": "^0.3.0",
     "yaml": "^2.4.0"
   },
   "engines": {
