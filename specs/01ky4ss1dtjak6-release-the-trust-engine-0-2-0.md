@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: non-additive
 paths: packages/** package-lock.json
 outcome: Publish 0.2.0 — the first release carrying code-owner signed
