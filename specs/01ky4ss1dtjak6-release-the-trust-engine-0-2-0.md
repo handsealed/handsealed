@@ -1,6 +1,6 @@
 status: open
 evidence: non-additive
-paths: packages/**
+paths: packages/** package-lock.json
 outcome: Publish 0.2.0 — the first release carrying code-owner signed
   authorization. Every package is bumped 0.1.0 → 0.2.0 with its inter-package
   ranges, so the tag-triggered publish ships the whole set with provenance. No
