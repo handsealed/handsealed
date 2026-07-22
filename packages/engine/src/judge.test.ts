@@ -338,3 +338,71 @@ test("[01ky58xnhgf9gw-signed-one-shot-delivery#3] the spec lane accepts a mandat
   const specLane = verdicts.rules.find((r) => r.rule === "spec-lane");
   assert.match(specLane?.findings[0]?.message ?? "", /1 signature companion/);
 });
+
+// --- exempt paths (maintenance-lane trivia) ---
+
+const EXEMPT_CONFIG = `${CONFIG}exemptPaths:\n  - "docs/**"\n  - "*.md"\n`;
+
+test("[01ky6366kq7a86-exempt-paths-for-the-maintenance-lane#1] a docs-only change under exemptPaths is the maintenance lane, no mandate", async () => {
+  const facts = factsFor(
+    [
+      { path: "docs/guide.md", kind: "modified" },
+      { path: "README.md", kind: "added" },
+    ],
+    { "b:.handsealed.yml": EXEMPT_CONFIG },
+  );
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "pass");
+  assert.deepEqual(
+    verdicts.rules.map((r) => r.rule),
+    ["lane"],
+  );
+  assert.equal(verdicts.rules[0]?.title, "Lane: maintenance");
+});
+
+test("[01ky6366kq7a86-exempt-paths-for-the-maintenance-lane#2] exempt files ride an implementation change outside ceiling and evidence", async () => {
+  const facts = factsFor(
+    [
+      { path: FLIP, kind: "modified" },
+      { path: "src/a.ts", kind: "modified" },
+      { path: "docs/guide.md", kind: "modified" },
+      { path: "test/a.test.ts", kind: "added" },
+    ],
+    {
+      [`b:${FLIP}`]: OPEN,
+      [`h:${FLIP}`]: DELIVERED,
+      "b:.handsealed.yml": EXEMPT_CONFIG,
+      "h:test/a.test.ts": MARKED_TEST,
+    },
+  );
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "pass", JSON.stringify(verdicts.rules));
+  const ceiling = verdicts.rules.find((r) => r.rule === "ceiling");
+  assert.equal(ceiling?.status, "pass");
+  const evidence = verdicts.rules.find((r) => r.rule === "evidence");
+  assert.match(evidence?.findings[0]?.message ?? "", /1 test file/);
+});
+
+test("[01ky6366kq7a86-exempt-paths-for-the-maintenance-lane#2] the .github fence still refuses implementation riders", async () => {
+  const facts = factsFor(
+    [
+      { path: FLIP, kind: "modified" },
+      { path: "src/a.ts", kind: "modified" },
+      { path: ".github/workflows/ci.yml", kind: "modified" },
+    ],
+    { [`b:${FLIP}`]: OPEN, [`h:${FLIP}`]: DELIVERED, "b:.handsealed.yml": EXEMPT_CONFIG },
+  );
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "fail");
+  assert.match(verdicts.rules[0]?.findings[0]?.message ?? "", /may not touch workflows/);
+});
+
+test("[01ky6366kq7a86-exempt-paths-for-the-maintenance-lane#3] a config without exemptPaths behaves exactly as before", async () => {
+  const facts = factsFor([{ path: "docs/guide.md", kind: "modified" }], {
+    "b:.handsealed.yml": CONFIG,
+  });
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "fail");
+  const binding = verdicts.rules.find((r) => r.rule === "binding");
+  assert.match(binding?.findings[0]?.message ?? "", /no mandate/);
+});

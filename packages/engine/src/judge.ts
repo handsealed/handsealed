@@ -20,6 +20,7 @@ type LoadedConfig =
       readonly ok: true;
       readonly testRoots: readonly string[];
       readonly allowedSigners: readonly AllowedSigner[];
+      readonly exemptPaths: readonly string[];
       readonly verdict: RuleVerdict | null;
     }
   | { readonly ok: false; readonly verdict: RuleVerdict };
@@ -61,6 +62,7 @@ async function loadConfig(facts: Facts, base: Oid, configTouched: boolean): Prom
     ok: true,
     testRoots: parsed.value.testRoots,
     allowedSigners: parsed.value.allowedSigners ?? [],
+    exemptPaths: parsed.value.exemptPaths ?? [],
     verdict: configTouched
       ? verdict("config", "Config", "attention", [
           {
@@ -105,14 +107,11 @@ async function implementationRules(
   base: Oid,
   head: Oid,
   changes: readonly PathChange[],
+  config: LoadedConfig,
 ): Promise<readonly RuleVerdict[]> {
   const binding = await validateBinding(facts, base, head, changes);
   if (!binding.ok) return [binding.verdict];
   const oneshot = binding.mode === "oneshot";
-  const configTouched = changes.some(
-    (change) => change.path === CONFIG_PATH || change.fromPath === CONFIG_PATH,
-  );
-  const config = await loadConfig(facts, base, configTouched);
   if (!config.ok) {
     const rules = [binding.verdict, config.verdict];
     if (oneshot) {
@@ -146,8 +145,14 @@ async function implementationRules(
   const sigPath = `${SPECS_DIR}${binding.slug}.sig`;
   const judged = changes.filter((change) => change.path !== sigPath);
   rules.push(
-    checkCeiling(binding.spec, judged, binding.flipPath, config.testRoots),
-    checkEvidenceConsistency(binding.spec, judged, binding.flipPath, config.testRoots),
+    checkCeiling(binding.spec, judged, binding.flipPath, config.testRoots, config.exemptPaths),
+    checkEvidenceConsistency(
+      binding.spec,
+      judged,
+      binding.flipPath,
+      config.testRoots,
+      config.exemptPaths,
+    ),
   );
   const acceptance = await acceptanceRule(
     facts,
@@ -190,19 +195,20 @@ async function laneRules(
   base: Oid,
   head: Oid,
   changes: readonly PathChange[],
+  config: LoadedConfig,
 ): Promise<readonly RuleVerdict[]> {
-  const lane = classifyLane(changes);
+  const lane = classifyLane(changes, config.ok ? config.exemptPaths : []);
   if (lane.lane === "spec") {
     if (await isFlipOnly(facts, head, changes)) {
       const routed = verdict("lane", "Lane: implementation", "pass", [
         { message: "flip-only change routed to the implementation lane" },
       ]);
-      return [routed, ...(await implementationRules(facts, base, head, changes))];
+      return [routed, ...(await implementationRules(facts, base, head, changes, config))];
     }
     return [lane.verdict, await validateSpecLane(facts, base, head, changes)];
   }
   if (lane.lane === "implementation") {
-    return [lane.verdict, ...(await implementationRules(facts, base, head, changes))];
+    return [lane.verdict, ...(await implementationRules(facts, base, head, changes, config))];
   }
   return [lane.verdict];
 }
@@ -221,7 +227,11 @@ export async function judge(
   options: JudgeOptions = {},
 ): Promise<Verdicts> {
   const changes = await facts.pathsChanged(base, head);
-  const rules = [...(await laneRules(facts, base, head, changes))];
+  const configTouched = changes.some(
+    (change) => change.path === CONFIG_PATH || change.fromPath === CONFIG_PATH,
+  );
+  const config = await loadConfig(facts, base, configTouched);
+  const rules = [...(await laneRules(facts, base, head, changes, config))];
   if (options.approved !== undefined) {
     rules.push(
       reapprovalFact(

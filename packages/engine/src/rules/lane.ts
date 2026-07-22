@@ -1,4 +1,5 @@
 import type { PathChange } from "@handsealed/facts";
+import { matchesAny } from "./glob.js";
 import type { RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 
@@ -21,14 +22,25 @@ const within = (change: PathChange, prefix: string): boolean =>
 const touches = (change: PathChange, prefix: string): boolean =>
   change.path.startsWith(prefix) || (change.fromPath?.startsWith(prefix) ?? false);
 
+/** Either side of the change matches one of the exempt globs. */
+const touchesOnlyExempt = (change: PathChange, exemptPaths: readonly string[]): boolean =>
+  exemptPaths.length > 0 &&
+  matchesAny(change.path, exemptPaths) &&
+  (change.fromPath === undefined || matchesAny(change.fromPath, exemptPaths));
+
 /**
  * The lane is computed from the diff, never declared. Spec lane: every
  * change entirely within specs/ (a rename crossing the boundary is not a
  * spec-lane change). Maintenance lane: every change touching only
- * maintenance dirs. Everything else is the implementation lane, where the
- * thin fence applies: implementation changes may not touch workflows.
+ * maintenance dirs or the base config's exemptPaths (docs and repo trivia
+ * need no mandate). Everything else is the implementation lane, where the
+ * thin fence applies: implementation changes may not touch workflows —
+ * exempt files, by contrast, may ride an implementation change freely.
  */
-export function classifyLane(changes: readonly PathChange[]): LaneResult {
+export function classifyLane(
+  changes: readonly PathChange[],
+  exemptPaths: readonly string[] = [],
+): LaneResult {
   if (changes.length === 0) {
     return {
       lane: "implementation",
@@ -38,7 +50,13 @@ export function classifyLane(changes: readonly PathChange[]): LaneResult {
   if (changes.every((change) => within(change, SPECS_DIR))) {
     return { lane: "spec", verdict: verdict("lane", "Lane: spec", "pass") };
   }
-  if (changes.every((change) => MAINTENANCE_DIRS.some((dir) => touches(change, dir)))) {
+  if (
+    changes.every(
+      (change) =>
+        MAINTENANCE_DIRS.some((dir) => touches(change, dir)) ||
+        touchesOnlyExempt(change, exemptPaths),
+    )
+  ) {
     return { lane: "maintenance", verdict: verdict("lane", "Lane: maintenance", "pass") };
   }
   const fenced = changes.filter((change) => MAINTENANCE_DIRS.some((dir) => touches(change, dir)));

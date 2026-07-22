@@ -28,6 +28,8 @@ export interface HandsealedConfig {
   readonly verificationSurface?: readonly string[];
   /** Code owners whose signature authorizes a mandate; omitted means not enforced. */
   readonly allowedSigners?: readonly AllowedSigner[];
+  /** Globs a change may touch with no mandate at all (docs, notes, repo trivia). */
+  readonly exemptPaths?: readonly string[];
 }
 
 const TOP_KEYS = new Set([
@@ -36,6 +38,7 @@ const TOP_KEYS = new Set([
   "testRoots",
   "verificationSurface",
   "allowedSigners",
+  "exemptPaths",
 ]);
 const SUITE_KEYS = new Set(["run", "results"]);
 const SIGNER_KEYS = new Set(["name", "key"]);
@@ -67,6 +70,7 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
   const suites: Record<string, SuiteConfig> = {};
   let testRoots: string[] | undefined;
   let verificationSurface: string[] | undefined;
+  let exemptPaths: string[] | undefined;
   let allowedSigners: AllowedSigner[] | undefined;
 
   const stringList = (node: unknown, name: string): string[] | undefined => {
@@ -191,6 +195,8 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
       testRoots = stringList(valueNode, "testRoots");
     } else if (key === "allowedSigners") {
       allowedSigners = parseSigners(valueNode);
+    } else if (key === "exemptPaths") {
+      exemptPaths = stringList(valueNode, "exemptPaths");
     } else {
       verificationSurface = stringList(valueNode, "verificationSurface");
     }
@@ -213,5 +219,6 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
     testRoots: testRoots ?? [],
     ...(verificationSurface !== undefined ? { verificationSurface } : {}),
     ...(allowedSigners !== undefined ? { allowedSigners } : {}),
+    ...(exemptPaths !== undefined ? { exemptPaths } : {}),
   });
 }
