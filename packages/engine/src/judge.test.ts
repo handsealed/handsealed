@@ -1,8 +1,11 @@
 import { strict as assert } from "node:assert";
+import { generateKeyPairSync, sign } from "node:crypto";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
 import type { PathChange } from "@handsealed/facts";
+import { parseSpec } from "./formats/spec.js";
 import { judge } from "./judge.js";
+import { canonicalCommitments } from "./rules/authorization.js";
 
 const SLUG = "01k0h3v8-do-thing";
 const OPEN = `status: open\nevidence: additive\npaths: src/**\noutcome: Do the thing.\nacceptance:\n- It works.\n`;
@@ -224,4 +227,114 @@ test("maintenance lane is lane-only", async () => {
     verdicts.rules.map((r) => r.rule),
     ["lane"],
   );
+});
+
+// --- signed one-shot delivery ---
+
+const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+const OWNER_KEY = Buffer.from(String(publicKey.export({ format: "jwk" }).x), "base64url").toString(
+  "base64",
+);
+const SIGNED_CONFIG = `${CONFIG}allowedSigners:\n  - name: owner\n    key: ${OWNER_KEY}\n`;
+const ONESHOT_SLUG = "01k0h3va-one-shot";
+const ONESHOT_MD = `specs/${ONESHOT_SLUG}.md`;
+const ONESHOT_SIG = `specs/${ONESHOT_SLUG}.sig`;
+const ONESHOT = `status: delivered\nevidence: additive\npaths: src/**\noutcome: One shot.\nacceptance:\n- It lands.\n`;
+const oneshotSpec = () => {
+  const parsed = parseSpec(ONESHOT);
+  if (!parsed.ok) throw new Error("fixture spec must parse");
+  return parsed.value;
+};
+const OWNER_SIG = sign(
+  null,
+  canonicalCommitments(ONESHOT_SLUG, oneshotSpec()),
+  privateKey,
+).toString("base64");
+const ONESHOT_CHANGES: PathChange[] = [
+  { path: ONESHOT_MD, kind: "added" },
+  { path: ONESHOT_SIG, kind: "added" },
+  { path: "src/a.ts", kind: "modified" },
+  { path: "test/a.test.ts", kind: "added" },
+];
+const oneshotFiles = () => ({
+  "b:.handsealed.yml": SIGNED_CONFIG,
+  [`h:${ONESHOT_MD}`]: ONESHOT,
+  [`h:${ONESHOT_SIG}`]: OWNER_SIG,
+  "h:test/a.test.ts": `test("[${ONESHOT_SLUG}#1] it lands", () => {});\n`,
+});
+
+test("[01ky58xnhgf9gw-signed-one-shot-delivery#1] a signed one-shot delivery passes end-to-end", async () => {
+  const facts = factsFor(ONESHOT_CHANGES, oneshotFiles());
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "pass");
+  assert.deepEqual(
+    verdicts.rules.map((r) => r.rule),
+    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance"],
+  );
+  const authorization = verdicts.rules.find((r) => r.rule === "authorization");
+  assert.match(authorization?.findings[0]?.message ?? "", /authorized by owner/);
+});
+
+test("[01ky58xnhgf9gw-signed-one-shot-delivery#3] the one-shot mandate's own signature is ceiling-exempt", async () => {
+  const facts = factsFor(ONESHOT_CHANGES, oneshotFiles());
+  const verdicts = await judge(facts, "b", "h");
+  const ceiling = verdicts.rules.find((r) => r.rule === "ceiling");
+  assert.equal(ceiling?.status, "pass");
+});
+
+test("[01ky58xnhgf9gw-signed-one-shot-delivery#2] adversarial: an unsigned one-shot is refused", async () => {
+  const files = oneshotFiles();
+  const { [`h:${ONESHOT_SIG}`]: _dropped, ...withoutSig } = files;
+  const facts = factsFor(
+    ONESHOT_CHANGES.filter((change) => change.path !== ONESHOT_SIG),
+    withoutSig,
+  );
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "fail");
+  const authorization = verdicts.rules.find((r) => r.rule === "authorization");
+  assert.match(authorization?.findings[0]?.message ?? "", /no code-owner signature/);
+});
+
+test("[01ky58xnhgf9gw-signed-one-shot-delivery#2] adversarial: a tampered one-shot signature is refused", async () => {
+  const files = { ...oneshotFiles(), [`h:${ONESHOT_SIG}`]: Buffer.alloc(64, 7).toString("base64") };
+  const facts = factsFor(ONESHOT_CHANGES, files);
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "fail");
+  const authorization = verdicts.rules.find((r) => r.rule === "authorization");
+  assert.match(authorization?.findings[0]?.message ?? "", /no allowed signer/);
+});
+
+test("[01ky58xnhgf9gw-signed-one-shot-delivery#2] adversarial: one-shot without configured signers is refused", async () => {
+  const files = { ...oneshotFiles(), "b:.handsealed.yml": CONFIG };
+  const facts = factsFor(ONESHOT_CHANGES, files);
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "fail");
+  const authorization = verdicts.rules.find((r) => r.rule === "authorization");
+  assert.match(authorization?.findings[0]?.message ?? "", /requires configured allowedSigners/);
+});
+
+test("[01ky58xnhgf9gw-signed-one-shot-delivery#2] adversarial: one-shot with no base config is refused fail-closed", async () => {
+  const { "b:.handsealed.yml": _dropped, ...files } = oneshotFiles();
+  const facts = factsFor(ONESHOT_CHANGES, files);
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "fail");
+  const authorization = verdicts.rules.find((r) => r.rule === "authorization");
+  assert.match(authorization?.findings[0]?.message ?? "", /requires a base config/);
+});
+
+test("[01ky58xnhgf9gw-signed-one-shot-delivery#3] the spec lane accepts a mandate with its signature companion", async () => {
+  const facts = factsFor(
+    [
+      { path: ONESHOT_MD, kind: "added" },
+      { path: ONESHOT_SIG, kind: "added" },
+    ],
+    {
+      [`h:${ONESHOT_MD}`]: ONESHOT.replace("status: delivered", "status: open"),
+      [`h:${ONESHOT_SIG}`]: OWNER_SIG,
+    },
+  );
+  const verdicts = await judge(facts, "b", "h");
+  assert.equal(verdicts.overall, "pass");
+  const specLane = verdicts.rules.find((r) => r.rule === "spec-lane");
+  assert.match(specLane?.findings[0]?.message ?? "", /1 signature companion/);
 });

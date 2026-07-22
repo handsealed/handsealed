@@ -4,12 +4,19 @@ import { SPECS_DIR } from "./lane.js";
 import type { Finding, RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 
-/** Discriminated: a valid flip carries the bound mandate; a failure carries only the verdict. */
+/**
+ * Discriminated: a valid binding carries the bound mandate; a failure carries
+ * only the verdict. Two accepted shapes: `flip` (the mandate existed open at
+ * base and only its status line changed) and `oneshot` (the mandate is created
+ * directly as delivered in this change — authorized solely by a code-owner
+ * signature, which the judge enforces fail-closed).
+ */
 export type BindingResult =
   | { readonly ok: false; readonly verdict: RuleVerdict }
   | {
       readonly ok: true;
       readonly verdict: RuleVerdict;
+      readonly mode: "flip" | "oneshot";
       /** The bound mandate, parsed at head. */
       readonly spec: Spec;
       readonly flipPath: string;
@@ -22,18 +29,30 @@ const fail = (findings: readonly Finding[]): BindingResult => ({
   verdict: verdict("binding", TITLE, "fail", findings),
 });
 
-const REFUSALS: Record<Exclude<ChangeKind, "modified">, string> = {
-  added: "spec created in the same change — self-authorization is impossible",
+const REFUSALS: Record<Exclude<ChangeKind, "modified" | "added">, string> = {
   deleted: "specs are never deleted by implementation changes",
   renamed: "specs are never renamed by implementation changes",
   copied: "specs are never copied by implementation changes",
   typechange: "spec type changes are not a flip",
 };
 
+const isSpecFile = (path: string): boolean => path.endsWith(".md");
+const isSigFile = (path: string): boolean => path.endsWith(".sig");
+
+/** `specs/<slug>.sig` is a companion iff `<slug>.md` would be a valid spec filename. */
+export function isSignatureCompanion(path: string): boolean {
+  if (!path.startsWith(SPECS_DIR) || !isSigFile(path)) return false;
+  const filename = path.slice(path.lastIndexOf("/") + 1);
+  return isValidSpecFilename(`${filename.slice(0, -".sig".length)}.md`);
+}
+
 /**
- * The status flip is the binding: exactly one spec file changes, and the
+ * The binding ties an implementation change to exactly one mandate. Flip: the
  * only changed bytes are `status: open` becoming `status: delivered` on the
- * canonical first line. The spec must already exist — open — at base.
+ * canonical first line of a spec that already exists — open — at base.
+ * One-shot: the spec is created in this change already `delivered`; the
+ * accompanying code-owner signature (not presence at base) is what authorizes
+ * it, so the judge requires that signature fail-closed.
  */
 export async function validateBinding(
   facts: Facts,
@@ -41,10 +60,27 @@ export async function validateBinding(
   head: Oid,
   changes: readonly PathChange[],
 ): Promise<BindingResult> {
-  const specChanges = changes.filter(
+  const specTouches = changes.filter(
     (change) =>
       change.path.startsWith(SPECS_DIR) || (change.fromPath?.startsWith(SPECS_DIR) ?? false),
   );
+  const specChanges = specTouches.filter(
+    (change) =>
+      isSpecFile(change.path) || (change.fromPath !== undefined && isSpecFile(change.fromPath)),
+  );
+  const sigChanges = specTouches.filter(
+    (change) =>
+      isSigFile(change.path) || (change.fromPath !== undefined && isSigFile(change.fromPath)),
+  );
+  const strays = specTouches.filter(
+    (change) => !specChanges.includes(change) && !sigChanges.includes(change),
+  );
+  if (strays.length > 0) {
+    return fail(
+      strays.map((stray) => ({ message: "unexpected file under specs/", path: stray.path })),
+    );
+  }
+
   const change = specChanges[0];
   if (change === undefined) {
     return fail([{ message: "no mandate: an implementation change must flip exactly one spec" }]);
@@ -54,7 +90,7 @@ export async function validateBinding(
       specChanges.map((extra) => ({ message: "more than one spec touched", path: extra.path })),
     );
   }
-  if (change.kind !== "modified") {
+  if (change.kind !== "modified" && change.kind !== "added") {
     return fail([{ message: REFUSALS[change.kind], path: change.path }]);
   }
   const flipPath = change.path;
@@ -62,20 +98,61 @@ export async function validateBinding(
   if (!isValidSpecFilename(filename)) {
     return fail([{ message: "invalid spec filename", path: flipPath }]);
   }
+  const slug = filename.slice(0, filename.length - ".md".length);
 
-  const [baseContent, headContent] = await Promise.all([
-    facts.fileAtRef(base, flipPath),
-    facts.fileAtRef(head, flipPath),
-  ]);
+  const foreignSigs = sigChanges.filter((sig) => sig.path !== `${SPECS_DIR}${slug}.sig`);
+  if (foreignSigs.length > 0) {
+    return fail(
+      foreignSigs.map((sig) => ({
+        message: "only the bound mandate's own signature may ride the change",
+        path: sig.path,
+      })),
+    );
+  }
+
+  const headContent = await facts.fileAtRef(head, flipPath);
+  if (headContent === null) {
+    return fail([{ message: "spec missing at head", path: flipPath }]);
+  }
+  const headParsed = parseSpec(headContent);
+  if (!headParsed.ok) {
+    return fail(
+      headParsed.issues.map((problem) => ({
+        message: `head spec invalid: ${problem.message}`,
+        path: flipPath,
+      })),
+    );
+  }
+  if (headParsed.value.status !== "delivered") {
+    const message =
+      change.kind === "added"
+        ? "spec created open in the same change — an open mandate authorizes nothing; deliver it signed (one-shot) or land it first"
+        : `flip must set status to "delivered"`;
+    return fail([{ message, path: flipPath }]);
+  }
+
+  if (change.kind === "added") {
+    return {
+      ok: true,
+      verdict: verdict("binding", TITLE, "pass", [
+        {
+          message: "mandate created delivered in this change — one-shot, signature required",
+          path: flipPath,
+        },
+      ]),
+      mode: "oneshot",
+      spec: headParsed.value,
+      flipPath,
+      slug,
+    };
+  }
+
+  const baseContent = await facts.fileAtRef(base, flipPath);
   if (baseContent === null) {
     return fail([
       { message: "spec does not exist at base — nothing authorized this", path: flipPath },
     ]);
   }
-  if (headContent === null) {
-    return fail([{ message: "spec missing at head", path: flipPath }]);
-  }
-
   const baseParsed = parseSpec(baseContent);
   if (!baseParsed.ok) {
     return fail(
@@ -91,18 +168,6 @@ export async function validateBinding(
         ? "already delivered — a mandate never authorizes twice"
         : "mandate was reverted — it never authorizes again";
     return fail([{ message: why, path: flipPath }]);
-  }
-  const headParsed = parseSpec(headContent);
-  if (!headParsed.ok) {
-    return fail(
-      headParsed.issues.map((problem) => ({
-        message: `head spec invalid: ${problem.message}`,
-        path: flipPath,
-      })),
-    );
-  }
-  if (headParsed.value.status !== "delivered") {
-    return fail([{ message: `flip must set status to "delivered"`, path: flipPath }]);
   }
 
   const baseLines = baseContent.split("\n");
@@ -121,8 +186,9 @@ export async function validateBinding(
     verdict: verdict("binding", TITLE, "pass", [
       { message: "mandate open at base, delivered at head; flip is byte-clean", path: flipPath },
     ]),
+    mode: "flip",
     spec: headParsed.value,
     flipPath,
-    slug: filename.slice(0, filename.length - ".md".length),
+    slug,
   };
 }
