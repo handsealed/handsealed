@@ -119,5 +119,5 @@ jobs:
             echo "pre-seal base — skipped"
             exit 0
           fi
-          npm install --no-save --prefix "$RUNNER_TEMP/handsealed" "@handsealed/verifier@0.1.0"
+          npm install --no-save --prefix "$RUNNER_TEMP/handsealed" "@handsealed/verifier@0.3.0"
           node "$RUNNER_TEMP/handsealed/node_modules/@handsealed/verifier/dist/cli.js" verify --base "$BASE" --head "$HEAD"
