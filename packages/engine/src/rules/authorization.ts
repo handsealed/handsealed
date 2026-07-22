@@ -52,14 +52,16 @@ async function verifiesUnder(
 
 /**
  * A mandate is authorized only by a code owner's Ed25519 signature over its
- * commitments, carried in a sibling `specs/<slug>.sig` that must already exist
- * at base — the authorization precedes the work, and the agent flipping the
- * mandate cannot forge it. Signers come from the base config; with none
- * configured the rule states so and does not gate, so adoption is opt-in.
+ * commitments, carried in a sibling `specs/<slug>.sig` read at the caller's
+ * `ref` — base for a flip (the authorization precedes the work), head for a
+ * one-shot (the signature itself is the authorization; forging it requires
+ * the owner's key either way). Signers come from the base config; with none
+ * configured the rule states so and does not gate, so flip adoption is
+ * opt-in (the judge makes one-shots fail closed instead).
  */
 export async function checkAuthorization(
   facts: Facts,
-  base: Oid,
+  ref: Oid,
   spec: Spec,
   slug: string,
   allowedSigners: readonly AllowedSigner[],
@@ -70,10 +72,10 @@ export async function checkAuthorization(
     ]);
   }
   const sigPath = `${SPECS_DIR}${slug}.sig`;
-  const raw = await facts.fileAtRef(base, sigPath);
+  const raw = await facts.fileAtRef(ref, sigPath);
   if (raw === null) {
     return verdict("authorization", TITLE, "fail", [
-      { message: "unauthorized: no code-owner signature at base", path: sigPath },
+      { message: "unauthorized: no code-owner signature for the mandate", path: sigPath },
     ]);
   }
   let signature: Uint8Array<ArrayBuffer>;

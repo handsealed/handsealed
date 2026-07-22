@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/**
 outcome: A signed mandate delivers in one change. A mandate created directly as

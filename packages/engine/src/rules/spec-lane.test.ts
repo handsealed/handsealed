@@ -42,6 +42,35 @@ test("an amendment to a still-open mandate passes", async () => {
   assert.equal(result.status, "pass");
 });
 
+test("a signature companion alongside an open spec passes", async () => {
+  const facts = factsWith({
+    [`h:${PATH}`]: OPEN,
+    "h:specs/01k0h3v8-do-thing.sig": "aGVsbG8=",
+  });
+  const result = await validateSpecLane(facts, "b", "h", [
+    added(PATH),
+    added("specs/01k0h3v8-do-thing.sig"),
+  ]);
+  assert.equal(result.status, "pass");
+  assert.match(
+    result.findings[0]?.message ?? "",
+    /1 spec\(s\) valid and open; 1 signature companion/,
+  );
+});
+
+test("adversarial: a signature companion that is not base64 fails", async () => {
+  const facts = factsWith({
+    [`h:${PATH}`]: OPEN,
+    "h:specs/01k0h3v8-do-thing.sig": "not base64!!\n",
+  });
+  const result = await validateSpecLane(facts, "b", "h", [
+    added(PATH),
+    added("specs/01k0h3v8-do-thing.sig"),
+  ]);
+  assert.equal(result.status, "fail");
+  assert.match(result.findings[0]?.message ?? "", /not valid base64/);
+});
+
 test("deletes, renames, bad filenames, and unparseable specs fail by name", async () => {
   const facts = factsWith({ [`h:specs/42-bad.md`]: OPEN, [`h:${PATH}`]: "garbage\n" });
   const result = await validateSpecLane(facts, "b", "h", [

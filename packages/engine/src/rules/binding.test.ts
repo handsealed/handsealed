@@ -38,10 +38,54 @@ test("adversarial: a second flip fails", async () => {
   assert.match(result.verdict.findings[0]?.message ?? "", /more than one spec/);
 });
 
-test("adversarial: a spec smuggled into the same change is self-authorization", async () => {
-  const result = await validateBinding(stub, "b", "h", [{ path: FLIP, kind: "added" }]);
+test("adversarial: a spec created still open in the same change authorizes nothing", async () => {
+  const facts = factsWith({ [`h:${FLIP}`]: OPEN });
+  const result = await validateBinding(facts, "b", "h", [{ path: FLIP, kind: "added" }]);
   assert.equal(result.verdict.status, "fail");
-  assert.match(result.verdict.findings[0]?.message ?? "", /self-authorization/);
+  assert.match(result.verdict.findings[0]?.message ?? "", /authorizes nothing/);
+});
+
+test("a mandate created delivered binds as a one-shot", async () => {
+  const facts = factsWith({ [`h:${FLIP}`]: DELIVERED });
+  const result = await validateBinding(facts, "b", "h", [
+    { path: FLIP, kind: "added" },
+    modified("src/a.ts"),
+  ]);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.mode, "oneshot");
+  assert.equal(result.slug, "01k0h3v8-do-thing");
+  assert.match(result.verdict.findings[0]?.message ?? "", /one-shot, signature required/);
+});
+
+test("a clean flip binds with mode flip and may carry its own signature", async () => {
+  const facts = factsWith({ [`b:${FLIP}`]: OPEN, [`h:${FLIP}`]: DELIVERED });
+  const result = await validateBinding(facts, "b", "h", [
+    modified(FLIP),
+    { path: "specs/01k0h3v8-do-thing.sig", kind: "added" },
+  ]);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.mode, "flip");
+});
+
+test("adversarial: a foreign signature riding the change is refused", async () => {
+  const facts = factsWith({ [`b:${FLIP}`]: OPEN, [`h:${FLIP}`]: DELIVERED });
+  const result = await validateBinding(facts, "b", "h", [
+    modified(FLIP),
+    { path: "specs/01k0h3v9-other.sig", kind: "added" },
+  ]);
+  assert.equal(result.verdict.status, "fail");
+  assert.match(result.verdict.findings[0]?.message ?? "", /own signature/);
+});
+
+test("adversarial: a stray file under specs/ is refused", async () => {
+  const result = await validateBinding(stub, "b", "h", [
+    modified(FLIP),
+    { path: "specs/notes.txt", kind: "added" },
+  ]);
+  assert.equal(result.verdict.status, "fail");
+  assert.match(result.verdict.findings[0]?.message ?? "", /unexpected file/);
 });
 
 test("adversarial: deleting a spec is never a flip", async () => {

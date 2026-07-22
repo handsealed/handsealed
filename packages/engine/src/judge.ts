@@ -8,7 +8,7 @@ import { reapprovalFact } from "./rules/reapproval.js";
 import { checkCeiling } from "./rules/ceiling.js";
 import { checkEvidenceConsistency } from "./rules/evidence.js";
 import { matchesAny } from "./rules/glob.js";
-import { classifyLane } from "./rules/lane.js";
+import { SPECS_DIR, classifyLane } from "./rules/lane.js";
 import { validateSpecLane } from "./rules/spec-lane.js";
 import type { RuleVerdict, Verdicts } from "./rules/verdict.js";
 import { collectVerdicts, verdict } from "./rules/verdict.js";
@@ -91,6 +91,15 @@ async function acceptanceRule(
   return mapAcceptance(slug, spec.acceptance.length, markers);
 }
 
+/**
+ * One-shot deliveries are authorized by the signature alone, so authorization
+ * is enforced fail-closed: no base config, no configured signers, or no valid
+ * signature all refuse. Flips keep opt-in semantics (signers configured
+ * enforce; none configured states so). The signature is read at base for a
+ * flip (authorization precedes the work) and at head for a one-shot (the
+ * mandate is created in the change — forging its signature requires the
+ * owner's key either way).
+ */
 async function implementationRules(
   facts: Facts,
   base: Oid,
@@ -99,19 +108,46 @@ async function implementationRules(
 ): Promise<readonly RuleVerdict[]> {
   const binding = await validateBinding(facts, base, head, changes);
   if (!binding.ok) return [binding.verdict];
+  const oneshot = binding.mode === "oneshot";
   const configTouched = changes.some(
     (change) => change.path === CONFIG_PATH || change.fromPath === CONFIG_PATH,
   );
   const config = await loadConfig(facts, base, configTouched);
-  if (!config.ok) return [binding.verdict, config.verdict];
+  if (!config.ok) {
+    const rules = [binding.verdict, config.verdict];
+    if (oneshot) {
+      rules.push(
+        verdict("authorization", "Authorization", "fail", [
+          { message: "one-shot delivery requires a base config with allowedSigners" },
+        ]),
+      );
+    }
+    return rules;
+  }
   const rules: RuleVerdict[] = [binding.verdict];
   if (config.verdict !== null) rules.push(config.verdict);
+  if (oneshot && config.allowedSigners.length === 0) {
+    rules.push(
+      verdict("authorization", "Authorization", "fail", [
+        { message: "one-shot delivery requires configured allowedSigners at base" },
+      ]),
+    );
+  } else {
+    rules.push(
+      await checkAuthorization(
+        facts,
+        oneshot ? head : base,
+        binding.spec,
+        binding.slug,
+        config.allowedSigners,
+      ),
+    );
+  }
+  const sigPath = `${SPECS_DIR}${binding.slug}.sig`;
+  const judged = changes.filter((change) => change.path !== sigPath);
   rules.push(
-    await checkAuthorization(facts, base, binding.spec, binding.slug, config.allowedSigners),
-  );
-  rules.push(
-    checkCeiling(binding.spec, changes, binding.flipPath, config.testRoots),
-    checkEvidenceConsistency(binding.spec, changes, binding.flipPath, config.testRoots),
+    checkCeiling(binding.spec, judged, binding.flipPath, config.testRoots),
+    checkEvidenceConsistency(binding.spec, judged, binding.flipPath, config.testRoots),
   );
   const acceptance = await acceptanceRule(
     facts,
