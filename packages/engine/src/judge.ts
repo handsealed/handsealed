@@ -1,7 +1,8 @@
 import type { Facts, Oid, PathChange } from "@handsealed/facts";
-import { parseConfig } from "./formats/config.js";
+import { parseConfig, type AllowedSigner } from "./formats/config.js";
 import { parseSpec, type Spec } from "./formats/spec.js";
 import { extractMarkers, mapAcceptance } from "./rules/acceptance.js";
+import { checkAuthorization } from "./rules/authorization.js";
 import { validateBinding } from "./rules/binding.js";
 import { reapprovalFact } from "./rules/reapproval.js";
 import { checkCeiling } from "./rules/ceiling.js";
@@ -18,6 +19,7 @@ type LoadedConfig =
   | {
       readonly ok: true;
       readonly testRoots: readonly string[];
+      readonly allowedSigners: readonly AllowedSigner[];
       readonly verdict: RuleVerdict | null;
     }
   | { readonly ok: false; readonly verdict: RuleVerdict };
@@ -58,6 +60,7 @@ async function loadConfig(facts: Facts, base: Oid, configTouched: boolean): Prom
   return {
     ok: true,
     testRoots: parsed.value.testRoots,
+    allowedSigners: parsed.value.allowedSigners ?? [],
     verdict: configTouched
       ? verdict("config", "Config", "attention", [
           {
@@ -103,6 +106,9 @@ async function implementationRules(
   if (!config.ok) return [binding.verdict, config.verdict];
   const rules: RuleVerdict[] = [binding.verdict];
   if (config.verdict !== null) rules.push(config.verdict);
+  rules.push(
+    await checkAuthorization(facts, base, binding.spec, binding.slug, config.allowedSigners),
+  );
   rules.push(
     checkCeiling(binding.spec, changes, binding.flipPath, config.testRoots),
     checkEvidenceConsistency(binding.spec, changes, binding.flipPath, config.testRoots),
@@ -167,10 +173,10 @@ async function laneRules(
 
 /**
  * The offline judge: the static rule set over a base..head range — lane,
- * then per lane: spec validation, or binding + config + ceiling + evidence
- * + acceptance; with `approved`, the re-approval fact is appended. This
- * exact composition is what every surface replays; the CLI and any hosted
- * judge are thin shells over it.
+ * then per lane: spec validation, or binding + config + authorization +
+ * ceiling + evidence + acceptance; with `approved`, the re-approval fact is
+ * appended. This exact composition is what every surface replays; the CLI
+ * and any hosted judge are thin shells over it.
  */
 export async function judge(
   facts: Facts,

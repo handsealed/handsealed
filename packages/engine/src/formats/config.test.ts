@@ -37,6 +37,21 @@ test("verificationSurface is optional", () => {
   assert.equal(result.value.verificationSurface, undefined);
 });
 
+test("parses allowedSigners", () => {
+  const source = `${VALID}allowedSigners:\n  - name: zygimantas\n    key: aGVsbG8=\n`;
+  const result = parseConfig(source);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.value.allowedSigners, [{ name: "zygimantas", key: "aGVsbG8=" }]);
+});
+
+test("allowedSigners is optional", () => {
+  const result = parseConfig(VALID);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.value.allowedSigners, undefined);
+});
+
 const INVALID: Array<{ name: string; source: string; expect: string; line?: number }> = [
   { name: "not a mapping", source: "- a\n- b\n", expect: "must be a YAML mapping" },
   {
@@ -51,6 +66,26 @@ const INVALID: Array<{ name: string; source: string; expect: string; line?: numb
     line: 1,
   },
   { name: "unknown top key", source: `${VALID}extra: nope\n`, expect: 'unknown key "extra"' },
+  {
+    name: "signer missing key",
+    source: `${VALID}allowedSigners:\n  - name: a\n`,
+    expect: 'signer is missing "key"',
+  },
+  {
+    name: "signer missing name",
+    source: `${VALID}allowedSigners:\n  - key: aGVsbG8=\n`,
+    expect: 'signer is missing "name"',
+  },
+  {
+    name: "allowedSigners not a list",
+    source: `${VALID}allowedSigners: nope\n`,
+    expect: '"allowedSigners" must be a list',
+  },
+  {
+    name: "empty allowedSigners",
+    source: `${VALID}allowedSigners: []\n`,
+    expect: '"allowedSigners" must not be empty',
+  },
   {
     name: "suites not a map",
     source: VALID.replace(/suites:[\s\S]*?testRoots:/, "suites: none\ntestRoots:"),
