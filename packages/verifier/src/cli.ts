@@ -5,12 +5,14 @@
  * Don't trust us; run it yourself.
  */
 import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { judge, renderMarkdown } from "@handsealed/engine";
 import { createGitFacts } from "@handsealed/facts-git";
 import { evidenceRun, renderEvidenceSummary } from "./commands/evidence.js";
 import { buildNodeTestArgs } from "./commands/results.js";
 import { specNew } from "./commands/spec-new.js";
+import { generateSigningKey, specSign } from "./commands/spec-sign.js";
 
 const USAGE = `handsealed <command>
 
@@ -20,6 +22,12 @@ commands:
       With --approved, the re-approval fact states what moved since that head.
   spec new <words...> [--dir specs]
       Mint an open mandate with a sortable, collision-proof filename.
+  spec sign <slug> --key <file> [--dir specs]
+      Sign a mandate's commitments with a code owner's Ed25519 private key,
+      writing specs/<slug>.sig for the authorization rule to verify.
+  keygen [--out <file>]
+      Mint an Ed25519 signing keypair: the PKCS8 private key to <file>, the
+      base64 public key (for .handsealed.yml allowedSigners) to stdout.
   results emit-node [--suite <name>] [--out <file>] [--] [paths...]
       Run node:test with the handsealed reporter attached.
   evidence run [--dir <cwd>]
@@ -57,17 +65,45 @@ async function runVerify(argv: string[]): Promise<number> {
 
 function runSpec(argv: string[]): number {
   const [sub, ...rest] = argv;
-  if (sub !== "new") {
-    process.stderr.write(USAGE);
-    return 2;
+  if (sub === "new") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: { dir: { type: "string", default: "specs" } },
+      allowPositionals: true,
+    });
+    const path = specNew(positionals, { dir: values.dir ?? "specs" });
+    process.stdout.write(`${path}\n`);
+    return 0;
   }
-  const { values, positionals } = parseArgs({
-    args: rest,
-    options: { dir: { type: "string", default: "specs" } },
-    allowPositionals: true,
+  if (sub === "sign") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: { dir: { type: "string", default: "specs" }, key: { type: "string" } },
+      allowPositionals: true,
+    });
+    const slug = positionals[0];
+    if (slug === undefined || values.key === undefined) {
+      process.stderr.write("spec sign requires <slug> and --key <file>\n");
+      return 2;
+    }
+    const path = specSign(slug, { dir: values.dir ?? "specs", keyPath: values.key });
+    process.stdout.write(`${path}\n`);
+    return 0;
+  }
+  process.stderr.write(USAGE);
+  return 2;
+}
+
+function runKeygen(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: { out: { type: "string", default: "handsealed-signing-key.pem" } },
   });
-  const path = specNew(positionals, { dir: values.dir ?? "specs" });
-  process.stdout.write(`${path}\n`);
+  const outPath = values.out ?? "handsealed-signing-key.pem";
+  const { privateKeyPem, publicKey } = generateSigningKey();
+  writeFileSync(outPath, privateKeyPem, { flag: "wx" });
+  process.stderr.write(`wrote the private key to ${outPath} — keep it secret, never commit it\n`);
+  process.stdout.write(`${publicKey}\n`);
   return 0;
 }
 
@@ -118,6 +154,7 @@ async function main(): Promise<number> {
   try {
     if (command === "verify") return await runVerify(rest);
     if (command === "spec") return runSpec(rest);
+    if (command === "keygen") return runKeygen(rest);
     if (command === "results") return await runResults(rest);
     if (command === "evidence") return await runEvidence(rest);
   } catch (error) {
