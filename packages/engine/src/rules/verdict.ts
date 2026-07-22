@@ -11,6 +11,7 @@ export type RuleId =
   | "lane"
   | "spec-lane"
   | "binding"
+  | "authorization"
   | "config"
   | "ceiling"
   | "evidence"

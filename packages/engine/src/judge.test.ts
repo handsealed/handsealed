@@ -14,7 +14,7 @@ const MARKED_TEST = `test("[${SLUG}#1] it works", () => {});\n`;
 const factsFor = (changes: PathChange[], files: Record<string, string>) =>
   memoryFacts({ changes, files });
 
-test("implementation lane composes lane, binding, ceiling, evidence, and acceptance", async () => {
+test("implementation lane composes lane, binding, authorization, ceiling, evidence, and acceptance", async () => {
   const facts = factsFor(
     [
       { path: FLIP, kind: "modified" },
@@ -32,7 +32,7 @@ test("implementation lane composes lane, binding, ceiling, evidence, and accepta
   assert.equal(verdicts.overall, "pass");
   assert.deepEqual(
     verdicts.rules.map((r) => r.rule),
-    ["lane", "binding", "ceiling", "evidence", "acceptance"],
+    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance"],
   );
 });
 
@@ -138,6 +138,29 @@ test("config introduced in the diff takes effect only after merge", async () => 
   );
 });
 
+test("[01ky4qawgtx2rs-code-owner-signed-authorization#3] allowedSigners come from the base config, so a change cannot authorize itself by adding a signer", async () => {
+  const headAddsSigner = `${CONFIG}allowedSigners:\n  - name: sneaky\n    key: 3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29\n`;
+  const facts = factsFor(
+    [
+      { path: FLIP, kind: "modified" },
+      { path: "src/a.ts", kind: "modified" },
+      { path: "test/a.test.ts", kind: "added" },
+      { path: ".handsealed.yml", kind: "modified" },
+    ],
+    {
+      [`b:${FLIP}`]: OPEN,
+      [`h:${FLIP}`]: DELIVERED,
+      "b:.handsealed.yml": CONFIG,
+      "h:.handsealed.yml": headAddsSigner,
+      "h:test/a.test.ts": MARKED_TEST,
+    },
+  );
+  const verdicts = await judge(facts, "b", "h");
+  const authorization = verdicts.rules.find((r) => r.rule === "authorization");
+  assert.equal(authorization?.status, "info");
+  assert.match(authorization?.findings[0]?.message ?? "", /not enforced/);
+});
+
 test("spec lane runs spec validation only", async () => {
   const facts = factsFor([{ path: FLIP, kind: "added" }], { [`h:${FLIP}`]: OPEN });
   const verdicts = await judge(facts, "b", "h");
@@ -188,7 +211,7 @@ test("a flip-only delivery (the exempt shape) routes to the implementation lane"
   assert.equal(verdicts.overall, "pass");
   assert.deepEqual(
     verdicts.rules.map((r) => r.rule),
-    ["lane", "binding", "ceiling", "evidence"],
+    ["lane", "binding", "authorization", "ceiling", "evidence"],
   );
   assert.match(verdicts.rules[0]?.findings[0]?.message ?? "", /flip-only change routed/);
 });

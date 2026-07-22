@@ -10,6 +10,14 @@ export interface SuiteConfig {
   readonly results: string;
 }
 
+/** A code owner allowed to authorize mandates, by name and Ed25519 public key. */
+export interface AllowedSigner {
+  /** Human label reported in the authorization verdict. */
+  readonly name: string;
+  /** The signer's Ed25519 public key, base64 of the 32 raw bytes. */
+  readonly key: string;
+}
+
 /** The `.handsealed.yml` contract. */
 export interface HandsealedConfig {
   readonly version: 1;
@@ -18,10 +26,19 @@ export interface HandsealedConfig {
   readonly testRoots: readonly string[];
   /** Files whose diffs earn the verification-surface badge. */
   readonly verificationSurface?: readonly string[];
+  /** Code owners whose signature authorizes a mandate; omitted means not enforced. */
+  readonly allowedSigners?: readonly AllowedSigner[];
 }
 
-const TOP_KEYS = new Set(["version", "suites", "testRoots", "verificationSurface"]);
+const TOP_KEYS = new Set([
+  "version",
+  "suites",
+  "testRoots",
+  "verificationSurface",
+  "allowedSigners",
+]);
 const SUITE_KEYS = new Set(["run", "results"]);
+const SIGNER_KEYS = new Set(["name", "key"]);
 export const SUITE_NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
 
 export function parseConfig(source: string): ParseResult<HandsealedConfig> {
@@ -50,6 +67,7 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
   const suites: Record<string, SuiteConfig> = {};
   let testRoots: string[] | undefined;
   let verificationSurface: string[] | undefined;
+  let allowedSigners: AllowedSigner[] | undefined;
 
   const stringList = (node: unknown, name: string): string[] | undefined => {
     if (!isSeq(node)) {
@@ -66,6 +84,46 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
     }
     if (values.length === 0) push(`"${name}" must not be empty`, node);
     return values;
+  };
+
+  const parseSigners = (node: unknown): AllowedSigner[] => {
+    if (!isSeq(node)) {
+      push('"allowedSigners" must be a list', node);
+      return [];
+    }
+    const signers: AllowedSigner[] = [];
+    for (const item of node.items) {
+      if (!isMap(item)) {
+        push("each allowedSigners entry must be a mapping with name and key", item);
+        continue;
+      }
+      let name: string | undefined;
+      let key: string | undefined;
+      for (const field of item.items) {
+        const fieldKey =
+          isScalar(field.key) && typeof field.key.value === "string" ? field.key.value : undefined;
+        if (fieldKey === undefined || !SIGNER_KEYS.has(fieldKey)) {
+          push("signer entries take only name and key", field.key);
+          continue;
+        }
+        const fieldValue = field.value;
+        if (
+          isScalar(fieldValue) &&
+          typeof fieldValue.value === "string" &&
+          fieldValue.value.trim() !== ""
+        ) {
+          if (fieldKey === "name") name = fieldValue.value;
+          else key = fieldValue.value;
+        } else {
+          push(`signer "${fieldKey}" must be a non-empty string`, fieldValue ?? field.key);
+        }
+      }
+      if (name === undefined) push('signer is missing "name"', item);
+      if (key === undefined) push('signer is missing "key"', item);
+      if (name !== undefined && key !== undefined) signers.push({ name, key });
+    }
+    if (signers.length === 0) push('"allowedSigners" must not be empty', node);
+    return signers;
   };
 
   for (const pair of root.items) {
@@ -131,6 +189,8 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
       if (valueNode.items.length === 0) push('"suites" must not be empty', valueNode);
     } else if (key === "testRoots") {
       testRoots = stringList(valueNode, "testRoots");
+    } else if (key === "allowedSigners") {
+      allowedSigners = parseSigners(valueNode);
     } else {
       verificationSurface = stringList(valueNode, "verificationSurface");
     }
@@ -152,5 +212,6 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
     suites,
     testRoots: testRoots ?? [],
     ...(verificationSurface !== undefined ? { verificationSurface } : {}),
+    ...(allowedSigners !== undefined ? { allowedSigners } : {}),
   });
 }
