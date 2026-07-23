@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/**
 outcome: Signing stops being a copy-paste ceremony. A new handsealed sign verb
