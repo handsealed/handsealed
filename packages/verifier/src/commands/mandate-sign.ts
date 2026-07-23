@@ -1,7 +1,7 @@
 import { generateKeyPairSync, type KeyObject } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { canonicalCommitments, parseSpec } from "@handsealed/engine";
+import { canonicalCommitments, parseMandate } from "@handsealed/engine";
 import { isOpensshPrivateKey, sshsigSignWithPem, sshsigSignWithSshKeygen } from "./sshsig-emit.js";
 
 /** The raw 32-byte Ed25519 public key as base64 — the form `.handsealed.yml` allowedSigners expects. */
@@ -40,7 +40,7 @@ export interface SignOptions {
  * a PKCS8 PEM key signs in-process; an OpenSSH key (including hardware `sk-`)
  * delegates to `ssh-keygen -Y sign`. Returns the signature path.
  */
-export function specSign(rawSlug: string, options: SignOptions): string {
+export function signMandate(rawSlug: string, options: SignOptions): string {
   const slug = rawSlug.replace(/\.md$/, "").replace(/^.*\//, "");
   const specPath = join(options.dir, `${slug}.md`);
   let source: string;
@@ -49,7 +49,7 @@ export function specSign(rawSlug: string, options: SignOptions): string {
   } catch {
     throw new Error(`mandate not found: ${specPath}`);
   }
-  const parsed = parseSpec(source);
+  const parsed = parseMandate(source);
   if (!parsed.ok) {
     throw new Error(
       `cannot sign an invalid mandate: ${parsed.issues.map((issue) => issue.message).join("; ")}`,

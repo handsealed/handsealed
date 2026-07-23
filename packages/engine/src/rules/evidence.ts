@@ -1,5 +1,5 @@
 import type { PathChange } from "@handsealed/facts";
-import type { Spec } from "../formats/spec.js";
+import type { Mandate } from "../formats/mandate.js";
 import { matchesAny } from "./glob.js";
 import type { Finding, RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
@@ -16,7 +16,7 @@ const TITLE = "Evidence class";
  * change under an exempt mandate fails.
  */
 export function checkEvidenceConsistency(
-  spec: Spec,
+  spec: Mandate,
   changes: readonly PathChange[],
   flipPath: string,
   testRoots: readonly string[],

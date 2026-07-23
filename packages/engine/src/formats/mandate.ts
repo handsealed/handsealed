@@ -1,15 +1,15 @@
 import type { Issue, ParseResult } from "./issues.js";
 import { fail, isOneOf, issue, ok } from "./issues.js";
 
-export const SPEC_STATUSES = ["open", "delivered", "reverted"] as const;
-export type SpecStatus = (typeof SPEC_STATUSES)[number];
+export const MANDATE_STATUSES = ["open", "delivered", "reverted"] as const;
+export type MandateStatus = (typeof MANDATE_STATUSES)[number];
 
 export const EVIDENCE_CLASSES = ["additive", "non-additive", "exempt"] as const;
 export type EvidenceClass = (typeof EVIDENCE_CLASSES)[number];
 
 /** A mandate: the frozen authorization object. */
-export interface Spec {
-  readonly status: SpecStatus;
+export interface Mandate {
+  readonly status: MandateStatus;
   readonly evidence: EvidenceClass;
   /** Optional manual-smoke note for runtime/device/infra paths. */
   readonly smoke?: string;
@@ -33,12 +33,12 @@ const FIELD_LINE = /^([a-z-]+):(?:\s(.*))?$/;
 const BULLET_LINE = /^- (.*)$/;
 
 /**
- * Spec filenames: a sortable Crockford-base32 prefix (8-26 chars, lowercase,
+ * Mandate filenames: a sortable Crockford-base32 prefix (8-26 chars, lowercase,
  * no i/l/o/u) followed by a kebab slug. Never sequential numbers.
  */
 const FILENAME = /^[0-9abcdefghjkmnpqrstvwxyz]{8,26}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 
-export function isValidSpecFilename(filename: string): boolean {
+export function isValidMandateFilename(filename: string): boolean {
   return FILENAME.test(filename);
 }
 
@@ -47,7 +47,7 @@ export function isValidSpecFilename(filename: string): boolean {
  * over following lines until a blank line, a field, or a bullet; blank
  * lines otherwise separate nothing and carry no meaning.
  */
-export function parseSpec(source: string): ParseResult<Spec> {
+export function parseMandate(source: string): ParseResult<Mandate> {
   const carriage = source.indexOf("\r");
   if (carriage !== -1) {
     const line = source.slice(0, carriage).split("\n").length;
@@ -145,9 +145,11 @@ export function parseSpec(source: string): ParseResult<Spec> {
 
   const statusRaw = seen.get("status");
   const status =
-    statusRaw !== undefined && isOneOf(SPEC_STATUSES, statusRaw) ? statusRaw : undefined;
+    statusRaw !== undefined && isOneOf(MANDATE_STATUSES, statusRaw) ? statusRaw : undefined;
   if (statusRaw !== undefined && status === undefined) {
-    issues.push(issue(`invalid status "${statusRaw}" (expected: ${SPEC_STATUSES.join(" | ")})`, 1));
+    issues.push(
+      issue(`invalid status "${statusRaw}" (expected: ${MANDATE_STATUSES.join(" | ")})`, 1),
+    );
   }
   const evidenceRaw = seen.get("evidence");
   const evidence =
@@ -178,8 +180,8 @@ export function parseSpec(source: string): ParseResult<Spec> {
   });
 }
 
-/** Canonical form: parse(printSpec(parseSpec(x).value)) is stable. */
-export function printSpec(spec: Spec): string {
+/** Canonical form: parse(printMandate(parseMandate(x).value)) is stable. */
+export function printMandate(spec: Mandate): string {
   const out: string[] = [`status: ${spec.status}`, `evidence: ${spec.evidence}`];
   if (spec.smoke !== undefined) out.push(`smoke: ${spec.smoke}`);
   if (spec.paths !== undefined && spec.paths.length > 0) out.push(`paths: ${spec.paths.join(" ")}`);

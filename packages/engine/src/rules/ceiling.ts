@@ -1,5 +1,5 @@
 import type { PathChange } from "@handsealed/facts";
-import type { Spec } from "../formats/spec.js";
+import type { Mandate } from "../formats/mandate.js";
 import { matchesAny } from "./glob.js";
 import type { RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
@@ -13,7 +13,7 @@ const TITLE = "Scope ceiling";
  * ceiling — stated, not implied.
  */
 export function checkCeiling(
-  spec: Spec,
+  spec: Mandate,
   changes: readonly PathChange[],
   flipPath: string,
   testRoots: readonly string[],

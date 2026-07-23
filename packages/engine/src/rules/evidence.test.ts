@@ -1,12 +1,12 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { PathChange } from "@handsealed/facts";
-import type { EvidenceClass, Spec } from "../formats/spec.js";
+import type { EvidenceClass, Mandate } from "../formats/mandate.js";
 import { checkEvidenceConsistency } from "./evidence.js";
 
 const FLIP = "specs/01k0h3v8-a.md";
 const ROOTS = ["test", "packages/*/src"];
-const spec = (evidence: EvidenceClass): Spec => ({
+const spec = (evidence: EvidenceClass): Mandate => ({
   status: "delivered",
   evidence,
   outcome: "x",

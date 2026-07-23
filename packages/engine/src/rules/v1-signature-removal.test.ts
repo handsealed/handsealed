@@ -2,14 +2,14 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
 import type { AllowedSigner } from "../formats/config.js";
-import type { Spec } from "../formats/spec.js";
+import type { Mandate } from "../formats/mandate.js";
 import { canonicalCommitments, checkAuthorization } from "./authorization.js";
-import { validateSpecLane } from "./spec-lane.js";
+import { validateMandateLane } from "./mandate-lane.js";
 
 const SLUG = "01ky4qawgtx2rs-code-owner-signed-authorization";
 const SIG_PATH = `specs/${SLUG}.sig`;
 
-const SPEC: Spec = {
+const SPEC: Mandate = {
   status: "delivered",
   evidence: "additive",
   paths: ["packages/**"],
@@ -53,7 +53,7 @@ test("[01ky80j7en0439-drop-the-v1-bare-signature-format#2] a bare base64 spec-la
       [`h:${SIG_PATH}`]: "VGhpcyBpcyBiYXJlIGJhc2U2NA==",
     },
   });
-  const result = await validateSpecLane(facts, "b", "h", [
+  const result = await validateMandateLane(facts, "b", "h", [
     { path: `specs/${SLUG}.md`, kind: "added" },
     { path: SIG_PATH, kind: "added" },
   ]);

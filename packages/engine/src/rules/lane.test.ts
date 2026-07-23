@@ -11,7 +11,7 @@ const change = (
 
 test("spec-only diffs classify as the spec lane", () => {
   const result = classifyLane([change("specs/01k0h3v8-a.md", "added")]);
-  assert.equal(result.lane, "spec");
+  assert.equal(result.lane, "mandate");
   assert.equal(result.verdict.status, "pass");
 });
 

@@ -3,8 +3,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { isValidSpecFilename, parseSpec } from "@handsealed/engine";
-import { mintPrefix, renderSpecTemplate, slugify, specNew } from "./spec-new.js";
+import { isValidMandateFilename, parseMandate } from "@handsealed/engine";
+import { mintPrefix, renderSpecTemplate, slugify, mandateNew } from "./mandate-new.js";
 
 test("minted prefixes are sortable crockford and collision-resistant", () => {
   const a = mintPrefix(1_750_000_000_000, () => 0.1);
@@ -24,23 +24,23 @@ test("slugify normalizes words", () => {
 });
 
 test("the template is a valid open mandate by construction", () => {
-  const parsed = parseSpec(renderSpecTemplate());
+  const parsed = parseMandate(renderSpecTemplate());
   assert.equal(parsed.ok, true);
   if (!parsed.ok) return;
   assert.equal(parsed.value.status, "open");
   assert.equal(parsed.value.evidence, "additive");
 });
 
-test("specNew writes a validly named file and refuses to overwrite", () => {
+test("mandateNew writes a validly named file and refuses to overwrite", () => {
   const dir = mkdtempSync(join(tmpdir(), "handsealed-specnew-"));
   try {
-    const path = specNew(["match", "coin", "toast"], { dir, nowMs: 1_750_000_000_000 });
+    const path = mandateNew(["match", "coin", "toast"], { dir, nowMs: 1_750_000_000_000 });
     assert.equal(existsSync(path), true);
     const filename = path.slice(path.lastIndexOf("/") + 1);
-    assert.equal(isValidSpecFilename(filename), true);
-    assert.equal(parseSpec(readFileSync(path, "utf8")).ok, true);
-    assert.throws(() => specNew(["x"], { dir: path }), /EEXIST|ENOTDIR/);
-    assert.throws(() => specNew([""], { dir }), /needs a slug/);
+    assert.equal(isValidMandateFilename(filename), true);
+    assert.equal(parseMandate(readFileSync(path, "utf8")).ok, true);
+    assert.throws(() => mandateNew(["x"], { dir: path }), /EEXIST|ENOTDIR/);
+    assert.throws(() => mandateNew([""], { dir }), /needs a slug/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

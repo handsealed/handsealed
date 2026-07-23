@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
 import type { Oid, PathChange } from "@handsealed/facts";
-import type { Spec } from "../formats/spec.js";
+import type { Mandate } from "../formats/mandate.js";
 import { checkRed, redReceiptPath } from "./red.js";
 
 const SLUG = "01ky7p4fqhjjq9-red-attestation-and-signature-envelope-v2";
@@ -10,7 +10,7 @@ const RECEIPT_PATH = redReceiptPath(SLUG);
 const CHK = "c".repeat(40);
 const TEST_ROOTS = ["packages/*/src/**"];
 
-const SPEC: Spec = {
+const SPEC: Mandate = {
   status: "delivered",
   evidence: "additive",
   paths: ["packages/**"],
@@ -163,7 +163,7 @@ test("an invalid receipt fails closed; a receipt on a non-additive mandate is in
   assert.equal(result.status, "fail");
   assert.match(result.findings[0]?.message ?? "", /invalid red receipt/);
 
-  const exempt: Spec = { ...SPEC, evidence: "exempt" };
+  const exempt: Mandate = { ...SPEC, evidence: "exempt" };
   const info = await checkRed(
     factsFor(),
     "base",

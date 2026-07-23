@@ -1,12 +1,12 @@
 export type { Issue, ParseResult } from "./formats/issues.js";
 export {
   EVIDENCE_CLASSES,
-  SPEC_STATUSES,
-  isValidSpecFilename,
-  parseSpec,
-  printSpec,
-} from "./formats/spec.js";
-export type { EvidenceClass, Spec, SpecStatus } from "./formats/spec.js";
+  MANDATE_STATUSES,
+  isValidMandateFilename,
+  parseMandate,
+  printMandate,
+} from "./formats/mandate.js";
+export type { EvidenceClass, Mandate, MandateStatus } from "./formats/mandate.js";
 export { SUITE_NAME_RE, parseConfig } from "./formats/config.js";
 export type { HandsealedConfig, SuiteConfig } from "./formats/config.js";
 export {
@@ -32,7 +32,7 @@ export type {
 } from "@handsealed/facts";
 export { CONFIG_PATH, judge } from "./judge.js";
 export type { JudgeOptions } from "./judge.js";
-export { validateSpecLane } from "./rules/spec-lane.js";
+export { validateMandateLane } from "./rules/mandate-lane.js";
 export { SPECS_DIR, classifyLane } from "./rules/lane.js";
 export type { Lane, LaneResult } from "./rules/lane.js";
 export { validateBinding } from "./rules/binding.js";

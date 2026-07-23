@@ -6,7 +6,7 @@ import { verdict } from "./verdict.js";
 export const SPECS_DIR = "specs/";
 const MAINTENANCE_DIRS = [".github/"] as const;
 
-export type Lane = "spec" | "implementation" | "maintenance";
+export type Lane = "mandate" | "implementation" | "maintenance";
 
 export interface LaneResult {
   readonly lane: Lane;
@@ -29,9 +29,9 @@ const touchesOnlyExempt = (change: PathChange, exemptPaths: readonly string[]): 
   (change.fromPath === undefined || matchesAny(change.fromPath, exemptPaths));
 
 /**
- * The lane is computed from the diff, never declared. Spec lane: every
+ * The lane is computed from the diff, never declared. Mandate lane: every
  * change entirely within specs/ (a rename crossing the boundary is not a
- * spec-lane change). Maintenance lane: every change touching only
+ * mandate-lane change). Maintenance lane: every change touching only
  * maintenance dirs or the base config's exemptPaths (docs and repo trivia
  * need no mandate). Everything else is the implementation lane, where the
  * thin fence applies: implementation changes may not touch workflows —
@@ -48,7 +48,7 @@ export function classifyLane(
     };
   }
   if (changes.every((change) => within(change, SPECS_DIR))) {
-    return { lane: "spec", verdict: verdict("lane", "Lane: spec", "pass") };
+    return { lane: "mandate", verdict: verdict("lane", "Lane: mandate", "pass") };
   }
   if (
     changes.every(

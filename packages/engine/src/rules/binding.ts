@@ -1,5 +1,5 @@
 import type { ChangeKind, Facts, Oid, PathChange } from "@handsealed/facts";
-import { isValidSpecFilename, parseSpec, type Spec } from "../formats/spec.js";
+import { isValidMandateFilename, parseMandate, type Mandate } from "../formats/mandate.js";
 import { SPECS_DIR } from "./lane.js";
 import type { Finding, RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
@@ -18,7 +18,7 @@ export type BindingResult =
       readonly verdict: RuleVerdict;
       readonly mode: "flip" | "oneshot";
       /** The bound mandate, parsed at head. */
-      readonly spec: Spec;
+      readonly spec: Mandate;
       readonly flipPath: string;
       readonly slug: string;
     };
@@ -30,10 +30,10 @@ const fail = (findings: readonly Finding[]): BindingResult => ({
 });
 
 const REFUSALS: Record<Exclude<ChangeKind, "modified" | "added">, string> = {
-  deleted: "specs are never deleted by implementation changes",
-  renamed: "specs are never renamed by implementation changes",
-  copied: "specs are never copied by implementation changes",
-  typechange: "spec type changes are not a flip",
+  deleted: "mandates are never deleted by implementation changes",
+  renamed: "mandates are never renamed by implementation changes",
+  copied: "mandates are never copied by implementation changes",
+  typechange: "mandate type changes are not a flip",
 };
 
 const isSpecFile = (path: string): boolean => path.endsWith(".md");
@@ -44,14 +44,14 @@ const isRedFile = (path: string): boolean => path.endsWith(".red.json");
 export function isSignatureCompanion(path: string): boolean {
   if (!path.startsWith(SPECS_DIR) || !isSigFile(path)) return false;
   const filename = path.slice(path.lastIndexOf("/") + 1);
-  return isValidSpecFilename(`${filename.slice(0, -".sig".length)}.md`);
+  return isValidMandateFilename(`${filename.slice(0, -".sig".length)}.md`);
 }
 
 /** `specs/<slug>.red.json` is a companion iff `<slug>.md` would be a valid spec filename. */
 export function isRedReceiptCompanion(path: string): boolean {
   if (!path.startsWith(SPECS_DIR) || !isRedFile(path)) return false;
   const filename = path.slice(path.lastIndexOf("/") + 1);
-  return isValidSpecFilename(`${filename.slice(0, -".red.json".length)}.md`);
+  return isValidMandateFilename(`${filename.slice(0, -".red.json".length)}.md`);
 }
 
 /**
@@ -98,11 +98,13 @@ export async function validateBinding(
 
   const change = specChanges[0];
   if (change === undefined) {
-    return fail([{ message: "no mandate: an implementation change must flip exactly one spec" }]);
+    return fail([
+      { message: "no mandate: an implementation change must flip exactly one mandate" },
+    ]);
   }
   if (specChanges.length > 1) {
     return fail(
-      specChanges.map((extra) => ({ message: "more than one spec touched", path: extra.path })),
+      specChanges.map((extra) => ({ message: "more than one mandate touched", path: extra.path })),
     );
   }
   if (change.kind !== "modified" && change.kind !== "added") {
@@ -110,8 +112,8 @@ export async function validateBinding(
   }
   const flipPath = change.path;
   const filename = flipPath.slice(flipPath.lastIndexOf("/") + 1);
-  if (!isValidSpecFilename(filename)) {
-    return fail([{ message: "invalid spec filename", path: flipPath }]);
+  if (!isValidMandateFilename(filename)) {
+    return fail([{ message: "invalid mandate filename", path: flipPath }]);
   }
   const slug = filename.slice(0, filename.length - ".md".length);
 
@@ -138,13 +140,13 @@ export async function validateBinding(
 
   const headContent = await facts.fileAtRef(head, flipPath);
   if (headContent === null) {
-    return fail([{ message: "spec missing at head", path: flipPath }]);
+    return fail([{ message: "mandate missing at head", path: flipPath }]);
   }
-  const headParsed = parseSpec(headContent);
+  const headParsed = parseMandate(headContent);
   if (!headParsed.ok) {
     return fail(
       headParsed.issues.map((problem) => ({
-        message: `head spec invalid: ${problem.message}`,
+        message: `head mandate invalid: ${problem.message}`,
         path: flipPath,
       })),
     );
@@ -152,7 +154,7 @@ export async function validateBinding(
   if (headParsed.value.status !== "delivered") {
     const message =
       change.kind === "added"
-        ? "spec created open in the same change — an open mandate authorizes nothing; deliver it signed (one-shot) or land it first"
+        ? "mandate created open in the same change — an open mandate authorizes nothing; deliver it signed (one-shot) or land it first"
         : `flip must set status to "delivered"`;
     return fail([{ message, path: flipPath }]);
   }
@@ -176,14 +178,14 @@ export async function validateBinding(
   const baseContent = await facts.fileAtRef(base, flipPath);
   if (baseContent === null) {
     return fail([
-      { message: "spec does not exist at base — nothing authorized this", path: flipPath },
+      { message: "mandate does not exist at base — nothing authorized this", path: flipPath },
     ]);
   }
-  const baseParsed = parseSpec(baseContent);
+  const baseParsed = parseMandate(baseContent);
   if (!baseParsed.ok) {
     return fail(
       baseParsed.issues.map((problem) => ({
-        message: `base spec invalid: ${problem.message}`,
+        message: `base mandate invalid: ${problem.message}`,
         path: flipPath,
       })),
     );

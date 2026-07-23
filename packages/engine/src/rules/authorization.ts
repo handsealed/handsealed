@@ -1,6 +1,6 @@
 import type { Facts, Oid } from "@handsealed/facts";
 import type { AllowedSigner } from "../formats/config.js";
-import type { Spec } from "../formats/spec.js";
+import type { Mandate } from "../formats/mandate.js";
 import {
   SSHSIG_NAMESPACE,
   looksLikeSshSignature,
@@ -19,9 +19,9 @@ const TITLE = "Authorization";
  * evidence class, scope, and acceptance — but never its status. Signing the
  * deal rather than the file means one authorization survives the open→delivered
  * flip yet still rejects any later tampering with what was promised. The signer
- * (the `spec sign` CLI) and every verifier recompute this identically.
+ * (the `sign` CLI) and every verifier recompute this identically.
  */
-export function canonicalCommitments(slug: string, spec: Spec): Uint8Array<ArrayBuffer> {
+export function canonicalCommitments(slug: string, spec: Mandate): Uint8Array<ArrayBuffer> {
   const lines = [
     "handsealed-authorization/v1",
     `slug:${slug}`,
@@ -75,7 +75,7 @@ const sameBytes = (a: Uint8Array, b: Uint8Array): boolean =>
   a.length === b.length && a.every((value, index) => value === b[index]);
 
 /**
- * The v2 envelope: SSHSIG PEM blocks. Each block embeds its own public key,
+ * The SSHSIG envelope: PEM blocks. Each block embeds its own public key,
  * so verification is cryptographic against the embedded key and
  * authorization is that key's membership in allowedSigners — no try-every-
  * signer. Any block that verifies under the `handsealed` namespace and
@@ -145,7 +145,7 @@ async function checkEnvelope(
 export async function checkAuthorization(
   facts: Facts,
   ref: Oid,
-  spec: Spec,
+  spec: Mandate,
   slug: string,
   allowedSigners: readonly AllowedSigner[],
 ): Promise<RuleVerdict> {

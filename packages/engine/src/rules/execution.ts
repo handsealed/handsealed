@@ -1,5 +1,5 @@
 import { countsOf, type SuiteResults } from "../formats/results.js";
-import type { Spec } from "../formats/spec.js";
+import type { Mandate } from "../formats/mandate.js";
 import type { Finding, RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 
@@ -16,7 +16,7 @@ const TITLE = "Evidence execution";
  * run` and `verify --results`.
  */
 export function checkExecution(
-  spec: Spec,
+  spec: Mandate,
   slug: string,
   results: readonly SuiteResults[],
 ): RuleVerdict {

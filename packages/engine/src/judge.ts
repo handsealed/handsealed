@@ -1,7 +1,7 @@
 import type { Facts, Oid, PathChange } from "@handsealed/facts";
 import type { SuiteResults } from "./formats/results.js";
 import { parseConfig, type AllowedSigner } from "./formats/config.js";
-import { parseSpec, type Spec } from "./formats/spec.js";
+import { parseMandate, type Mandate } from "./formats/mandate.js";
 import { extractMarkers, mapAcceptance } from "./rules/acceptance.js";
 import { checkAuthorization } from "./rules/authorization.js";
 import { validateBinding } from "./rules/binding.js";
@@ -12,7 +12,7 @@ import { checkExecution } from "./rules/execution.js";
 import { checkRed } from "./rules/red.js";
 import { matchesAny } from "./rules/glob.js";
 import { SPECS_DIR, classifyLane } from "./rules/lane.js";
-import { validateSpecLane } from "./rules/spec-lane.js";
+import { validateMandateLane } from "./rules/mandate-lane.js";
 import type { RuleVerdict, Verdicts } from "./rules/verdict.js";
 import { collectVerdicts, verdict } from "./rules/verdict.js";
 
@@ -83,7 +83,7 @@ async function loadConfig(facts: Facts, base: Oid, configTouched: boolean): Prom
 async function acceptanceRule(
   facts: Facts,
   head: Oid,
-  spec: Spec,
+  spec: Mandate,
   slug: string,
   changes: readonly PathChange[],
   testRoots: readonly string[],
@@ -202,7 +202,7 @@ async function isFlipOnly(
   if (only === undefined || only.kind !== "modified") return false;
   const content = await facts.fileAtRef(head, only.path);
   if (content === null) return false;
-  const parsed = parseSpec(content);
+  const parsed = parseMandate(content);
   return parsed.ok && parsed.value.status === "delivered";
 }
 
@@ -222,14 +222,14 @@ async function laneRules(
   results?: readonly SuiteResults[],
 ): Promise<readonly RuleVerdict[]> {
   const lane = classifyLane(changes, config.ok ? config.exemptPaths : []);
-  if (lane.lane === "spec") {
+  if (lane.lane === "mandate") {
     if (await isFlipOnly(facts, head, changes)) {
       const routed = verdict("lane", "Lane: implementation", "pass", [
         { message: "flip-only change routed to the implementation lane" },
       ]);
       return [routed, ...(await implementationRules(facts, base, head, changes, config, results))];
     }
-    return [lane.verdict, await validateSpecLane(facts, base, head, changes)];
+    return [lane.verdict, await validateMandateLane(facts, base, head, changes)];
   }
   if (lane.lane === "implementation") {
     return [

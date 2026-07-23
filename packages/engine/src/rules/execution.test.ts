@@ -1,12 +1,12 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { parseSpec } from "../formats/spec.js";
+import { parseMandate } from "../formats/mandate.js";
 import { checkExecution } from "./execution.js";
 
 const SLUG = "01k0h3v8-do-thing";
 const spec = (evidence: string, bullets = 1) => {
   const acceptance = Array.from({ length: bullets }, (_, i) => `- Bullet ${i + 1}.`).join("\n");
-  const parsed = parseSpec(
+  const parsed = parseMandate(
     `status: delivered\nevidence: ${evidence}\noutcome: X.\nacceptance:\n${acceptance}\n`,
   );
   if (!parsed.ok) throw new Error("fixture spec must parse");

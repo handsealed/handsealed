@@ -35,7 +35,7 @@ test("adversarial: a second flip fails", async () => {
     modified("specs/01k0h3v9-other.md"),
   ]);
   assert.equal(result.verdict.status, "fail");
-  assert.match(result.verdict.findings[0]?.message ?? "", /more than one spec/);
+  assert.match(result.verdict.findings[0]?.message ?? "", /more than one mandate/);
 });
 
 test("adversarial: a spec created still open in the same change authorizes nothing", async () => {
@@ -115,18 +115,18 @@ test("adversarial: a spec absent at base authorizes nothing", async () => {
   assert.match(result.verdict.findings[0]?.message ?? "", /does not exist at base/);
 });
 
-test("invalid spec filenames fail", async () => {
+test("invalid mandate filenames fail", async () => {
   const path = "specs/42-feature.md";
   const result = await validateBinding(stub, "b", "h", [modified(path)]);
   assert.equal(result.verdict.status, "fail");
-  assert.match(result.verdict.findings[0]?.message ?? "", /invalid spec filename/);
+  assert.match(result.verdict.findings[0]?.message ?? "", /invalid mandate filename/);
 });
 
 test("an unparseable base spec fails with its issues", async () => {
   const facts = factsWith({ [`b:${FLIP}`]: "garbage\n", [`h:${FLIP}`]: DELIVERED });
   const result = await validateBinding(facts, "b", "h", [modified(FLIP)]);
   assert.equal(result.verdict.status, "fail");
-  assert.match(result.verdict.findings[0]?.message ?? "", /base spec invalid/);
+  assert.match(result.verdict.findings[0]?.message ?? "", /base mandate invalid/);
 });
 
 test("the bound mandate's own red receipt is a companion, never a stray", async () => {

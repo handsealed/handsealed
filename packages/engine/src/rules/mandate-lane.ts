@@ -1,14 +1,14 @@
 import type { Facts, Oid, PathChange } from "@handsealed/facts";
-import { isValidSpecFilename, parseSpec } from "../formats/spec.js";
+import { isValidMandateFilename, parseMandate } from "../formats/mandate.js";
 import { looksLikeSshSignature, parseSshSignatures } from "../formats/sshsig.js";
 import { isRedReceiptCompanion, isSignatureCompanion } from "./binding.js";
 import type { Finding, RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 
-const TITLE = "Spec lane";
+const TITLE = "Mandate lane";
 
 /**
- * Spec-lane diffs create or amend mandates: every changed spec must parse,
+ * Mandate-lane diffs create or amend mandates: every changed mandate must parse,
  * carry a valid filename, and remain `open` — status flips happen only in
  * implementation changes, and specs are never deleted or renamed. A
  * `specs/<slug>.sig` signature companion (a code owner pre-authorizing a
@@ -18,7 +18,7 @@ const TITLE = "Spec lane";
  * delivered or reverted mandate is immutable history, so a change that
  * rewrites one back to `open` (a reopen — the two-step replay) is refused.
  */
-export async function validateSpecLane(
+export async function validateMandateLane(
   facts: Facts,
   base: Oid,
   head: Oid,
@@ -48,20 +48,20 @@ export async function validateSpecLane(
     }
     if (isRedReceiptCompanion(change.path)) {
       findings.push({
-        message: "a red receipt rides its delivering implementation change, not the spec lane",
+        message: "a red receipt rides its delivering implementation change, not the mandate lane",
         path: change.path,
       });
       continue;
     }
     const filename = change.path.slice(change.path.lastIndexOf("/") + 1);
-    if (!isValidSpecFilename(filename)) {
-      findings.push({ message: "invalid spec filename", path: change.path });
+    if (!isValidMandateFilename(filename)) {
+      findings.push({ message: "invalid mandate filename", path: change.path });
       continue;
     }
     if (change.kind === "modified") {
       const baseContent = await facts.fileAtRef(base, change.path);
       if (baseContent !== null) {
-        const baseParsed = parseSpec(baseContent);
+        const baseParsed = parseMandate(baseContent);
         if (baseParsed.ok && baseParsed.value.status !== "open") {
           findings.push({
             message: `a ${baseParsed.value.status} mandate is immutable history — it is never reopened or edited`,
@@ -73,34 +73,34 @@ export async function validateSpecLane(
     }
     const content = await facts.fileAtRef(head, change.path);
     if (content === null) {
-      findings.push({ message: "spec missing at head", path: change.path });
+      findings.push({ message: "mandate missing at head", path: change.path });
       continue;
     }
-    const parsed = parseSpec(content);
+    const parsed = parseMandate(content);
     if (!parsed.ok) {
       for (const problem of parsed.issues) {
-        findings.push({ message: `invalid spec: ${problem.message}`, path: change.path });
+        findings.push({ message: `invalid mandate: ${problem.message}`, path: change.path });
       }
       continue;
     }
     if (parsed.value.status !== "open") {
       findings.push({
-        message: "spec-lane changes stay open — status flips happen in implementation changes",
+        message: "a mandate stays open in its lane — status flips happen in implementation changes",
         path: change.path,
       });
     }
   }
   if (findings.length > 0) {
-    return verdict("spec-lane", TITLE, "fail", findings);
+    return verdict("mandate-lane", TITLE, "fail", findings);
   }
   const sigCount = changes.filter((change) => isSignatureCompanion(change.path)).length;
   const specCount = changes.length - sigCount;
-  return verdict("spec-lane", TITLE, "pass", [
+  return verdict("mandate-lane", TITLE, "pass", [
     {
       message:
         sigCount > 0
-          ? `${specCount} spec(s) valid and open; ${sigCount} signature companion(s)`
-          : `${specCount} spec(s) valid and open`,
+          ? `${specCount} mandate(s) valid and open; ${sigCount} signature companion(s)`
+          : `${specCount} mandate(s) valid and open`,
     },
   ]);
 }

@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
 import type { AllowedSigner } from "../formats/config.js";
-import type { Spec } from "../formats/spec.js";
+import type { Mandate } from "../formats/mandate.js";
 import { canonicalCommitments, checkAuthorization } from "./authorization.js";
 
 import {
@@ -18,7 +18,7 @@ import {
 const SLUG = "01ky4qawgtx2rs-code-owner-signed-authorization";
 const SIG_PATH = `specs/${SLUG}.sig`;
 
-const SPEC: Spec = {
+const SPEC: Mandate = {
   status: "delivered",
   evidence: "additive",
   paths: ["packages/**"],
@@ -66,7 +66,7 @@ test("[01ky4qawgtx2rs-code-owner-signed-authorization#2] a well-formed but inval
 test("[01ky4qawgtx2rs-code-owner-signed-authorization#4] a signature over the original commitments does not authorize a tampered mandate", async () => {
   const { signer, pair } = await newSigner("zygimantas");
   const original = await sign(pair, canonicalCommitments(SLUG, SPEC));
-  const tampered: Spec = {
+  const tampered: Mandate = {
     ...SPEC,
     acceptance: [...SPEC.acceptance, "and quietly grant more scope"],
   };
@@ -146,7 +146,7 @@ test("adversarial: an envelope by a key outside allowedSigners is unauthorized",
 });
 
 test("adversarial: an envelope does not authorize tampered commitments", async () => {
-  const tampered: Spec = {
+  const tampered: Mandate = {
     ...FIXTURE_SPEC,
     acceptance: [...FIXTURE_SPEC.acceptance, "and quietly grant more scope"],
   };

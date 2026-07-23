@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { checkAuthorization, parseSpec } from "@handsealed/engine";
+import { checkAuthorization, parseMandate } from "@handsealed/engine";
 import { memoryFacts } from "@handsealed/facts/memory";
 import {
   DEFAULT_KEY_PATH,
@@ -15,7 +15,7 @@ import {
   signAll,
   unsignedFrom,
 } from "./sign.js";
-import { generateSigningKey } from "./spec-sign.js";
+import { generateSigningKey } from "./mandate-sign.js";
 
 const MANDATE = `status: delivered
 evidence: additive
@@ -65,7 +65,7 @@ test("[01ky65jxdkmk54-one-command-signing#2] the conventional key path is the de
     const resolved = resolveKeyPath(keyPath);
     assert.equal(resolved.ok, true);
 
-    const parsed = parseSpec(MANDATE);
+    const parsed = parseMandate(MANDATE);
     assert.equal(parsed.ok, true);
     if (!parsed.ok) return;
     const mandates = [
