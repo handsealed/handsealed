@@ -97,7 +97,11 @@ export async function checkRed(
     ]);
   }
 
-  const checkpointChanges = await facts.pathsChanged(base, receipt.sha);
+  // The checkpoint diffs from its fork point, not the base tip: the base
+  // branch may have advanced since the checkpoint was cut, and those
+  // unrelated commits are not the checkpoint's changes.
+  const forkPoint = (await facts.mergeBase(base, receipt.sha)) ?? base;
+  const checkpointChanges = await facts.pathsChanged(forkPoint, receipt.sha);
   const offenders = checkpointChanges.filter((change) => !matchesAny(change.path, testRoots));
   if (offenders.length > 0) {
     return fail(

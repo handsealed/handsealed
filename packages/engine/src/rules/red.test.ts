@@ -41,6 +41,7 @@ interface FactsOverrides {
   readonly files?: Readonly<Record<string, string>>;
   readonly changes?: Readonly<Record<string, readonly PathChange[]>>;
   readonly isAncestor?: (ancestor: Oid, descendant: Oid) => boolean;
+  readonly mergeBase?: (a: Oid, b: Oid) => Oid | null;
 }
 
 function factsFor(overrides: FactsOverrides = {}) {
@@ -53,6 +54,7 @@ function factsFor(overrides: FactsOverrides = {}) {
     },
     changes: { [`base..${CHK}`]: [{ path: TEST_FILE, kind: "added" }], ...overrides.changes },
     isAncestor: overrides.isAncestor ?? ((ancestor) => ancestor === CHK),
+    mergeBase: overrides.mergeBase ?? (() => "base"),
   });
 }
 
@@ -187,4 +189,35 @@ test("an invalid receipt fails closed; a receipt on a non-additive mandate is in
     "additive",
   );
   assert.equal(silent, null);
+});
+
+test("[01ky7x2qppcxyx-anchor-the-red-checkpoint-diff-at-the-fork-point#1] a valid receipt still verifies after the base advances past the fork point", async () => {
+  // The base branch moved on (an unrelated merge) after the checkpoint was
+  // cut: diffing base..checkpoint directly would sweep the base's new files
+  // into the checkpoint's changes. The rule must diff from the fork point —
+  // the merge base of base and checkpoint. Only the fork..checkpoint range
+  // is configured, so a rule still diffing from the advanced base throws.
+  const facts = memoryFacts({
+    files: {
+      [`head:${RECEIPT_PATH}`]: receiptJson(),
+      [`head:${TEST_FILE}`]: FROZEN,
+      [`${CHK}:${TEST_FILE}`]: FROZEN,
+    },
+    changes: { [`fork..${CHK}`]: [{ path: TEST_FILE, kind: "added" }] },
+    isAncestor: (ancestor) => ancestor === CHK,
+    mergeBase: (a, b) => (a === "advanced-base" && b === CHK ? "fork" : null),
+  });
+  const result = await checkRed(
+    facts,
+    "advanced-base",
+    "head",
+    SPEC,
+    SLUG,
+    CHANGES,
+    TEST_ROOTS,
+    "additive",
+  );
+  assert.ok(result !== null);
+  assert.equal(result.status, "pass", result.findings[0]?.message ?? "");
+  assert.match(result.findings[0]?.message ?? "", /red attested/);
 });

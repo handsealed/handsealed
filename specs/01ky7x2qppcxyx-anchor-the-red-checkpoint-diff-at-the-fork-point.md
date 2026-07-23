@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/**
 outcome: The red rule's test-only checkpoint check diffs from the fork point
