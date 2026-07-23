@@ -21,7 +21,7 @@ import {
   signAll,
   unsignedFrom,
 } from "./commands/sign.js";
-import { generateSigningKey, specSign } from "./commands/spec-sign.js";
+import { generateSigningKey } from "./commands/spec-sign.js";
 
 const USAGE = `handsealed <command>
 
@@ -35,9 +35,6 @@ commands:
       acceptance bullet was executed as a passing, marker-named case.
   spec new <words...> [--dir specs]
       Mint an open mandate with a sortable, collision-proof filename.
-  spec sign <slug> --key <file> [--dir specs]
-      Sign a mandate's commitments with a code owner's Ed25519 private key,
-      writing specs/<slug>.sig for the authorization rule to verify.
   keygen [--out <file>]
       Mint an Ed25519 signing keypair: the PKCS8 private key to <file>, the
       base64 public key (for .handsealed.yml allowedSigners) to stdout.
@@ -115,21 +112,6 @@ function runSpec(argv: string[]): number {
       allowPositionals: true,
     });
     const path = specNew(positionals, { dir: values.dir ?? "specs" });
-    process.stdout.write(`${path}\n`);
-    return 0;
-  }
-  if (sub === "sign") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: { dir: { type: "string", default: "specs" }, key: { type: "string" } },
-      allowPositionals: true,
-    });
-    const slug = positionals[0];
-    if (slug === undefined || values.key === undefined) {
-      process.stderr.write("spec sign requires <slug> and --key <file>\n");
-      return 2;
-    }
-    const path = specSign(slug, { dir: values.dir ?? "specs", keyPath: values.key });
     process.stdout.write(`${path}\n`);
     return 0;
   }

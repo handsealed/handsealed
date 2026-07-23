@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "sha": "a747481a3cd55af0298804f09e6e88cd17310014",
+  "cases": [
+    {
+      "name": "[01ky7z90mezvrz-drop-the-unused-verification-surface-and-the-spec-sign-verb#1] the config parser refuses verificationSurface as an unknown key",
+      "outcome": "fail"
+    },
+    {
+      "name": "[01ky7z90mezvrz-drop-the-unused-verification-surface-and-the-spec-sign-verb#2] the CLI no longer offers spec sign and points signing at the sign verb",
+      "outcome": "fail"
+    }
+  ]
+}

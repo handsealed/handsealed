@@ -24,8 +24,6 @@ export interface HandsealedConfig {
   readonly suites: Readonly<Record<string, SuiteConfig>>;
   /** The per-runtime test-root manifest: files under these ride with head in evidence builds. */
   readonly testRoots: readonly string[];
-  /** Files whose diffs earn the verification-surface badge. */
-  readonly verificationSurface?: readonly string[];
   /** Code owners whose signature authorizes a mandate; omitted means not enforced. */
   readonly allowedSigners?: readonly AllowedSigner[];
   /** Globs a change may touch with no mandate at all (docs, notes, repo trivia). */
@@ -38,7 +36,6 @@ const TOP_KEYS = new Set([
   "version",
   "suites",
   "testRoots",
-  "verificationSurface",
   "allowedSigners",
   "exemptPaths",
   "redRequired",
@@ -72,7 +69,6 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
   let version: number | undefined;
   const suites: Record<string, SuiteConfig> = {};
   let testRoots: string[] | undefined;
-  let verificationSurface: string[] | undefined;
   let exemptPaths: string[] | undefined;
   let allowedSigners: AllowedSigner[] | undefined;
   let redRequired: "off" | "additive" | undefined;
@@ -201,14 +197,12 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
       allowedSigners = parseSigners(valueNode);
     } else if (key === "exemptPaths") {
       exemptPaths = stringList(valueNode, "exemptPaths");
-    } else if (key === "redRequired") {
+    } else {
       if (isScalar(valueNode) && (valueNode.value === "off" || valueNode.value === "additive")) {
         redRequired = valueNode.value;
       } else {
         push('"redRequired" must be "off" or "additive"', valueNode ?? keyNode);
       }
-    } else {
-      verificationSurface = stringList(valueNode, "verificationSurface");
     }
   }
 
@@ -227,7 +221,6 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
     version: 1,
     suites,
     testRoots: testRoots ?? [],
-    ...(verificationSurface !== undefined ? { verificationSurface } : {}),
     ...(allowedSigners !== undefined ? { allowedSigners } : {}),
     ...(exemptPaths !== undefined ? { exemptPaths } : {}),
     ...(redRequired !== undefined ? { redRequired } : {}),

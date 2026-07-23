@@ -6,6 +6,3 @@ suites:
 testRoots:
   - "packages/*/src/**/*.test.ts"
   - "scripts/*.test.mjs"
-verificationSurface:
-  - package.json
-  - tsconfig.base.json

@@ -13,9 +13,6 @@ suites:
 testRoots:
   - packages/*/src
   - scripts
-verificationSurface:
-  - package.json
-  - .mise.toml
 `;
 
 test("parses a valid config", () => {
@@ -26,15 +23,6 @@ test("parses a valid config", () => {
   assert.deepEqual(Object.keys(result.value.suites), ["scripts", "backend"]);
   assert.equal(result.value.suites["scripts"]?.run, "npm test");
   assert.deepEqual(result.value.testRoots, ["packages/*/src", "scripts"]);
-  assert.deepEqual(result.value.verificationSurface, ["package.json", ".mise.toml"]);
-});
-
-test("verificationSurface is optional", () => {
-  const source = VALID.split("verificationSurface:")[0] ?? "";
-  const result = parseConfig(source);
-  assert.equal(result.ok, true);
-  if (!result.ok) return;
-  assert.equal(result.value.verificationSurface, undefined);
 });
 
 test("parses allowedSigners", () => {

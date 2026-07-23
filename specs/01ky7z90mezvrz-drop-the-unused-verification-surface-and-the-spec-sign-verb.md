@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/** .handsealed.yml
 outcome: Two vestiges go. The verificationSurface config key was parsed,
