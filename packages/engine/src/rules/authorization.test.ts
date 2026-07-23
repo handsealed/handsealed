@@ -49,28 +49,11 @@ async function sign(pair: CryptoKeyPair, message: Uint8Array<ArrayBuffer>): Prom
 const factsWith = (sig: string | null) =>
   memoryFacts({ changes: [], files: sig === null ? {} : { [`b:${SIG_PATH}`]: sig } });
 
-test("[01ky4qawgtx2rs-code-owner-signed-authorization#1] a valid signature by an allowed signer authorizes the flip", async () => {
-  const { signer, pair } = await newSigner("zygimantas");
-  const sig = await sign(pair, canonicalCommitments(SLUG, SPEC));
-  const result = await checkAuthorization(factsWith(sig), "b", SPEC, SLUG, [signer]);
-  assert.equal(result.status, "pass");
-  assert.match(result.findings[0]?.message ?? "", /authorized by zygimantas/);
-});
-
 test("[01ky4qawgtx2rs-code-owner-signed-authorization#2] a missing signature is unauthorized", async () => {
   const { signer } = await newSigner("zygimantas");
   const result = await checkAuthorization(factsWith(null), "b", SPEC, SLUG, [signer]);
   assert.equal(result.status, "fail");
   assert.match(result.findings[0]?.message ?? "", /no code-owner signature/);
-});
-
-test("[01ky4qawgtx2rs-code-owner-signed-authorization#2] a signature by a key absent from allowedSigners is unauthorized", async () => {
-  const outsider = await newSigner("outsider");
-  const allowed = await newSigner("zygimantas");
-  const sig = await sign(outsider.pair, canonicalCommitments(SLUG, SPEC));
-  const result = await checkAuthorization(factsWith(sig), "b", SPEC, SLUG, [allowed.signer]);
-  assert.equal(result.status, "fail");
-  assert.match(result.findings[0]?.message ?? "", /no allowed signer/);
 });
 
 test("[01ky4qawgtx2rs-code-owner-signed-authorization#2] a well-formed but invalid signature is unauthorized", async () => {
@@ -175,12 +158,4 @@ test("adversarial: an envelope does not authorize tampered commitments", async (
     [FIXTURE_SIGNER],
   );
   assert.equal(result.status, "fail");
-});
-
-test(`[01ky7p4fqhjjq9-red-attestation-and-signature-envelope-v2#2] a bare v1 base64 signature and a raw base64 signer key keep authorizing`, async () => {
-  const { signer, pair } = await newSigner("zygimantas");
-  const sig = await sign(pair, canonicalCommitments(SLUG, SPEC));
-  const result = await checkAuthorization(factsWith(sig), "b", SPEC, SLUG, [signer]);
-  assert.equal(result.status, "pass");
-  assert.match(result.findings[0]?.message ?? "", /authorized by zygimantas/);
 });

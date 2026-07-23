@@ -6,14 +6,13 @@ import type { Finding, RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 
 const TITLE = "Spec lane";
-const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
 
 /**
  * Spec-lane diffs create or amend mandates: every changed spec must parse,
  * carry a valid filename, and remain `open` — status flips happen only in
  * implementation changes, and specs are never deleted or renamed. A
  * `specs/<slug>.sig` signature companion (a code owner pre-authorizing a
- * mandate) is welcome alongside; it only needs to be base64.
+ * mandate) is welcome alongside as an SSH signature envelope.
  *
  * Amendments may only touch mandates that are still open at base: a
  * delivered or reverted mandate is immutable history, so a change that
@@ -37,12 +36,11 @@ export async function validateSpecLane(
     }
     if (isSignatureCompanion(change.path)) {
       const signature = await facts.fileAtRef(head, change.path);
-      const bare = signature !== null && BASE64.test(signature.trim());
       const envelope =
         signature !== null && looksLikeSshSignature(signature) && parseSshSignatures(signature).ok;
-      if (!bare && !envelope) {
+      if (!envelope) {
         findings.push({
-          message: "signature is neither bare base64 nor a valid SSH signature envelope",
+          message: "signature companion is not a valid SSH signature envelope",
           path: change.path,
         });
       }

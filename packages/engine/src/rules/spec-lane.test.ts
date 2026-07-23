@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
 import type { PathChange } from "@handsealed/facts";
+import { FIXTURE_SIG_GOOD } from "../formats/sshsig.fixtures.js";
 import { validateSpecLane } from "./spec-lane.js";
 
 const factsWith = (files: Record<string, string>) => memoryFacts({ files });
@@ -45,7 +46,7 @@ test("an amendment to a still-open mandate passes", async () => {
 test("a signature companion alongside an open spec passes", async () => {
   const facts = factsWith({
     [`h:${PATH}`]: OPEN,
-    "h:specs/01k0h3v8-do-thing.sig": "aGVsbG8=",
+    "h:specs/01k0h3v8-do-thing.sig": FIXTURE_SIG_GOOD,
   });
   const result = await validateSpecLane(facts, "b", "h", [
     added(PATH),
@@ -68,7 +69,7 @@ test("adversarial: a signature companion that is not base64 fails", async () => 
     added("specs/01k0h3v8-do-thing.sig"),
   ]);
   assert.equal(result.status, "fail");
-  assert.match(result.findings[0]?.message ?? "", /neither bare base64/);
+  assert.match(result.findings[0]?.message ?? "", /SSH signature envelope/);
 });
 
 test("deletes, renames, bad filenames, and unparseable specs fail by name", async () => {
