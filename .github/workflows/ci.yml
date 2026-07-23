@@ -95,7 +95,7 @@ jobs:
           printf 'version: 1\nsuites:\n  demo:\n    run: cp pre.json demo.json\n    results: demo.json\ntestRoots:\n  - test\n' > .handsealed.yml
           printf '{"version":1,"suite":"demo","cases":[{"name":"a","outcome":"pass"}]}' > pre.json
           ./node_modules/.bin/handsealed evidence run
-          ./node_modules/.bin/handsealed spec new consume smoke
+          ./node_modules/.bin/handsealed mandate new consume smoke
 
   handsealed:
     runs-on: ubuntu-latest
