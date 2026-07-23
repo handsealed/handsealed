@@ -12,6 +12,14 @@ import { createGitFacts } from "@handsealed/facts-git";
 import { evidenceRun, renderEvidenceSummary } from "./commands/evidence.js";
 import { buildNodeTestArgs } from "./commands/results.js";
 import { specNew } from "./commands/spec-new.js";
+import {
+  changedSpecPaths,
+  commitAndPush,
+  renderCommitments,
+  resolveKeyPath,
+  signAll,
+  unsignedFrom,
+} from "./commands/sign.js";
 import { generateSigningKey, specSign } from "./commands/spec-sign.js";
 
 const USAGE = `handsealed <command>
@@ -28,6 +36,12 @@ commands:
   keygen [--out <file>]
       Mint an Ed25519 signing keypair: the PKCS8 private key to <file>, the
       base64 public key (for .handsealed.yml allowedSigners) to stdout.
+  sign [<slug>...] [--key <file>] [--dir specs] [--base origin/main]
+       [--commit] [--push] [--yes]
+      Discover the branch's unsigned mandates (or take explicit slugs), show
+      the commitments you are about to sign, confirm, and sign with your
+      code-owner key (default ~/.handsealed/key.pem), writing sibling .sig
+      files; --commit/--push land them on the branch.
   results emit-node [--suite <name>] [--out <file>] [--] [paths...]
       Run node:test with the handsealed reporter attached.
   evidence run [--dir <cwd>]
@@ -94,6 +108,70 @@ function runSpec(argv: string[]): number {
   return 2;
 }
 
+async function runSign(argv: string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    options: {
+      key: { type: "string" },
+      dir: { type: "string", default: "specs" },
+      base: { type: "string", default: "origin/main" },
+      commit: { type: "boolean", default: false },
+      push: { type: "boolean", default: false },
+      yes: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+  });
+  const dir = values.dir ?? "specs";
+  const key = resolveKeyPath(values.key);
+  if (!key.ok) {
+    process.stderr.write(`${key.error}\n`);
+    return 2;
+  }
+  const candidates =
+    positionals.length > 0
+      ? positionals.map((slug) => `${dir}/${String(slug).replace(/\.md$/, "")}.md`)
+      : changedSpecPaths({ base: values.base ?? "origin/main", dir });
+  const { readFileSync, existsSync } = await import("node:fs");
+  const mandates = unsignedFrom(
+    candidates,
+    (path) => (existsSync(path) ? readFileSync(path, "utf8") : null),
+    (sigPath) => existsSync(sigPath),
+  );
+  if (mandates.length === 0) {
+    process.stdout.write("nothing to sign: no unsigned mandates found\n");
+    return 0;
+  }
+  for (const mandate of mandates) {
+    process.stderr.write(`${renderCommitments(mandate)}\n\n`);
+  }
+  if (values.yes !== true) {
+    if (!process.stdin.isTTY) {
+      process.stderr.write("not a terminal — confirm signing with --yes\n");
+      return 2;
+    }
+    const { createInterface } = await import("node:readline/promises");
+    const prompt = createInterface({ input: process.stdin, output: process.stderr });
+    const answer = (await prompt.question(`Sign ${mandates.length} mandate(s)? [y/N] `)).trim();
+    prompt.close();
+    if (answer.toLowerCase() !== "y") {
+      process.stderr.write("aborted — nothing signed\n");
+      return 2;
+    }
+  }
+  const sigPaths = signAll(mandates, { keyPath: key.path, dir });
+  for (const path of sigPaths) {
+    process.stdout.write(`${path}\n`);
+  }
+  if (values.commit === true || values.push === true) {
+    commitAndPush(
+      sigPaths,
+      mandates.map((mandate) => mandate.slug),
+      { push: values.push === true },
+    );
+  }
+  return 0;
+}
+
 function runKeygen(argv: string[]): number {
   const { values } = parseArgs({
     args: argv,
@@ -154,6 +232,7 @@ async function main(): Promise<number> {
   try {
     if (command === "verify") return await runVerify(rest);
     if (command === "spec") return runSpec(rest);
+    if (command === "sign") return await runSign(rest);
     if (command === "keygen") return runKeygen(rest);
     if (command === "results") return await runResults(rest);
     if (command === "evidence") return await runEvidence(rest);
