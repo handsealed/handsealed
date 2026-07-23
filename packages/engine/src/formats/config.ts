@@ -30,6 +30,8 @@ export interface HandsealedConfig {
   readonly allowedSigners?: readonly AllowedSigner[];
   /** Globs a change may touch with no mandate at all (docs, notes, repo trivia). */
   readonly exemptPaths?: readonly string[];
+  /** `additive` makes a missing red receipt fail additive mandates; omitted means `off`. */
+  readonly redRequired?: "off" | "additive";
 }
 
 const TOP_KEYS = new Set([
@@ -39,6 +41,7 @@ const TOP_KEYS = new Set([
   "verificationSurface",
   "allowedSigners",
   "exemptPaths",
+  "redRequired",
 ]);
 const SUITE_KEYS = new Set(["run", "results"]);
 const SIGNER_KEYS = new Set(["name", "key"]);
@@ -72,6 +75,7 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
   let verificationSurface: string[] | undefined;
   let exemptPaths: string[] | undefined;
   let allowedSigners: AllowedSigner[] | undefined;
+  let redRequired: "off" | "additive" | undefined;
 
   const stringList = (node: unknown, name: string): string[] | undefined => {
     if (!isSeq(node)) {
@@ -197,6 +201,12 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
       allowedSigners = parseSigners(valueNode);
     } else if (key === "exemptPaths") {
       exemptPaths = stringList(valueNode, "exemptPaths");
+    } else if (key === "redRequired") {
+      if (isScalar(valueNode) && (valueNode.value === "off" || valueNode.value === "additive")) {
+        redRequired = valueNode.value;
+      } else {
+        push('"redRequired" must be "off" or "additive"', valueNode ?? keyNode);
+      }
     } else {
       verificationSurface = stringList(valueNode, "verificationSurface");
     }
@@ -220,5 +230,6 @@ export function parseConfig(source: string): ParseResult<HandsealedConfig> {
     ...(verificationSurface !== undefined ? { verificationSurface } : {}),
     ...(allowedSigners !== undefined ? { allowedSigners } : {}),
     ...(exemptPaths !== undefined ? { exemptPaths } : {}),
+    ...(redRequired !== undefined ? { redRequired } : {}),
   });
 }

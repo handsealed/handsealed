@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { checkAuthorization, parseSpec } from "@handsealed/engine";
+import { checkAuthorization, parseSpec, parseSshSignatures } from "@handsealed/engine";
 import { memoryFacts } from "@handsealed/facts/memory";
 import { generateSigningKey, specSign } from "./spec-sign.js";
 
@@ -24,7 +24,7 @@ test("[01ky4s3m2j4mcc-spec-sign-cli-for-code-owners#1] keygen mints an Ed25519 k
   assert.equal(Buffer.from(publicKey, "base64").length, 32);
 });
 
-test("[01ky4s3m2j4mcc-spec-sign-cli-for-code-owners#2] spec sign writes a signature over the mandate's commitments", () => {
+test("[01ky4s3m2j4mcc-spec-sign-cli-for-code-owners#2] spec sign writes an SSHSIG envelope over the mandate's commitments", () => {
   const dir = scratch();
   try {
     const slug = "01ky4s3m2j4mcc-example";
@@ -33,7 +33,11 @@ test("[01ky4s3m2j4mcc-spec-sign-cli-for-code-owners#2] spec sign writes a signat
     writeFileSync(keyPath, generateSigningKey().privateKeyPem);
     const sigPath = specSign(slug, { dir, keyPath });
     assert.equal(sigPath, join(dir, `${slug}.sig`));
-    assert.equal(Buffer.from(readFileSync(sigPath, "utf8").trim(), "base64").length, 64);
+    const envelope = readFileSync(sigPath, "utf8");
+    assert.match(envelope, /-----BEGIN SSH SIGNATURE-----/);
+    const parsed = parseSshSignatures(envelope);
+    assert.ok(parsed.ok, parsed.ok ? "" : parsed.issue);
+    assert.equal(parsed.blocks[0]?.namespace, "handsealed");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

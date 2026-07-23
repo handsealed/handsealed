@@ -38,12 +38,20 @@ const REFUSALS: Record<Exclude<ChangeKind, "modified" | "added">, string> = {
 
 const isSpecFile = (path: string): boolean => path.endsWith(".md");
 const isSigFile = (path: string): boolean => path.endsWith(".sig");
+const isRedFile = (path: string): boolean => path.endsWith(".red.json");
 
 /** `specs/<slug>.sig` is a companion iff `<slug>.md` would be a valid spec filename. */
 export function isSignatureCompanion(path: string): boolean {
   if (!path.startsWith(SPECS_DIR) || !isSigFile(path)) return false;
   const filename = path.slice(path.lastIndexOf("/") + 1);
   return isValidSpecFilename(`${filename.slice(0, -".sig".length)}.md`);
+}
+
+/** `specs/<slug>.red.json` is a companion iff `<slug>.md` would be a valid spec filename. */
+export function isRedReceiptCompanion(path: string): boolean {
+  if (!path.startsWith(SPECS_DIR) || !isRedFile(path)) return false;
+  const filename = path.slice(path.lastIndexOf("/") + 1);
+  return isValidSpecFilename(`${filename.slice(0, -".red.json".length)}.md`);
 }
 
 /**
@@ -72,8 +80,15 @@ export async function validateBinding(
     (change) =>
       isSigFile(change.path) || (change.fromPath !== undefined && isSigFile(change.fromPath)),
   );
+  const receiptChanges = specTouches.filter(
+    (change) =>
+      isRedFile(change.path) || (change.fromPath !== undefined && isRedFile(change.fromPath)),
+  );
   const strays = specTouches.filter(
-    (change) => !specChanges.includes(change) && !sigChanges.includes(change),
+    (change) =>
+      !specChanges.includes(change) &&
+      !sigChanges.includes(change) &&
+      !receiptChanges.includes(change),
   );
   if (strays.length > 0) {
     return fail(
@@ -106,6 +121,17 @@ export async function validateBinding(
       foreignSigs.map((sig) => ({
         message: "only the bound mandate's own signature may ride the change",
         path: sig.path,
+      })),
+    );
+  }
+  const foreignReceipts = receiptChanges.filter(
+    (receipt) => receipt.path !== `${SPECS_DIR}${slug}.red.json`,
+  );
+  if (foreignReceipts.length > 0) {
+    return fail(
+      foreignReceipts.map((receipt) => ({
+        message: "only the bound mandate's own red receipt may ride the change",
+        path: receipt.path,
       })),
     );
   }

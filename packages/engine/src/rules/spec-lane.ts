@@ -1,6 +1,7 @@
 import type { Facts, Oid, PathChange } from "@handsealed/facts";
 import { isValidSpecFilename, parseSpec } from "../formats/spec.js";
-import { isSignatureCompanion } from "./binding.js";
+import { looksLikeSshSignature, parseSshSignatures } from "../formats/sshsig.js";
+import { isRedReceiptCompanion, isSignatureCompanion } from "./binding.js";
 import type { Finding, RuleVerdict } from "./verdict.js";
 import { verdict } from "./verdict.js";
 
@@ -36,9 +37,22 @@ export async function validateSpecLane(
     }
     if (isSignatureCompanion(change.path)) {
       const signature = await facts.fileAtRef(head, change.path);
-      if (signature === null || !BASE64.test(signature.trim())) {
-        findings.push({ message: "signature is not valid base64", path: change.path });
+      const bare = signature !== null && BASE64.test(signature.trim());
+      const envelope =
+        signature !== null && looksLikeSshSignature(signature) && parseSshSignatures(signature).ok;
+      if (!bare && !envelope) {
+        findings.push({
+          message: "signature is neither bare base64 nor a valid SSH signature envelope",
+          path: change.path,
+        });
       }
+      continue;
+    }
+    if (isRedReceiptCompanion(change.path)) {
+      findings.push({
+        message: "a red receipt rides its delivering implementation change, not the spec lane",
+        path: change.path,
+      });
       continue;
     }
     const filename = change.path.slice(change.path.lastIndexOf("/") + 1);

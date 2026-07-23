@@ -5,6 +5,16 @@ import type { AllowedSigner } from "../formats/config.js";
 import type { Spec } from "../formats/spec.js";
 import { canonicalCommitments, checkAuthorization } from "./authorization.js";
 
+import {
+  FIXTURE_COMMITMENTS,
+  FIXTURE_PUB1,
+  FIXTURE_SIG_GOOD,
+  FIXTURE_SIG_STRANGER,
+  FIXTURE_SIG_WRONG_NAMESPACE,
+  FIXTURE_SLUG,
+  FIXTURE_SPEC,
+} from "../formats/sshsig.fixtures.js";
+
 const SLUG = "01ky4qawgtx2rs-code-owner-signed-authorization";
 const SIG_PATH = `specs/${SLUG}.sig`;
 
@@ -92,4 +102,86 @@ test("canonicalCommitments is stable and excludes status", () => {
   const delivered = new TextDecoder().decode(canonicalCommitments(SLUG, SPEC));
   assert.equal(open, delivered);
   assert.match(open, /^handsealed-authorization\/v1\n/);
+});
+
+// --- the v2 SSHSIG envelope (fixtures are real ssh-keygen output) ---
+
+const V2_SLUG = "01ky7p4fqhjjq9-red-attestation-and-signature-envelope-v2";
+const FIXTURE_SIG_PATH = `specs/${FIXTURE_SLUG}.sig`;
+const FIXTURE_SIGNER: AllowedSigner = { name: "zygimantas", key: FIXTURE_PUB1 };
+
+const envelopeFacts = (sig: string) =>
+  memoryFacts({ changes: [], files: { [`b:${FIXTURE_SIG_PATH}`]: sig } });
+
+test(`[01ky7p4fqhjjq9-red-attestation-and-signature-envelope-v2#1] an SSHSIG envelope by an allowed signer authorizes and names the signer`, async () => {
+  const commitments = new TextDecoder().decode(canonicalCommitments(FIXTURE_SLUG, FIXTURE_SPEC));
+  assert.equal(commitments, FIXTURE_COMMITMENTS);
+  const result = await checkAuthorization(
+    envelopeFacts(FIXTURE_SIG_GOOD),
+    "b",
+    FIXTURE_SPEC,
+    FIXTURE_SLUG,
+    [FIXTURE_SIGNER],
+  );
+  assert.equal(result.status, "pass");
+  assert.match(result.findings[0]?.message ?? "", /authorized by zygimantas/);
+});
+
+test(`[01ky7p4fqhjjq9-red-attestation-and-signature-envelope-v2#1] any allowed block in a multi-signature envelope authorizes`, async () => {
+  const result = await checkAuthorization(
+    envelopeFacts(`${FIXTURE_SIG_STRANGER}${FIXTURE_SIG_GOOD}`),
+    "b",
+    FIXTURE_SPEC,
+    FIXTURE_SLUG,
+    [FIXTURE_SIGNER],
+  );
+  assert.equal(result.status, "pass");
+  assert.match(result.findings[0]?.message ?? "", /authorized by zygimantas/);
+});
+
+test("adversarial: a wrong-namespace envelope never authorizes (cross-protocol reuse)", async () => {
+  const result = await checkAuthorization(
+    envelopeFacts(FIXTURE_SIG_WRONG_NAMESPACE),
+    "b",
+    FIXTURE_SPEC,
+    FIXTURE_SLUG,
+    [FIXTURE_SIGNER],
+  );
+  assert.equal(result.status, "fail");
+  assert.ok(result.findings.some((finding) => /namespace "file"/.test(finding.message)));
+});
+
+test("adversarial: an envelope by a key outside allowedSigners is unauthorized", async () => {
+  const result = await checkAuthorization(
+    envelopeFacts(FIXTURE_SIG_STRANGER),
+    "b",
+    FIXTURE_SPEC,
+    FIXTURE_SLUG,
+    [FIXTURE_SIGNER],
+  );
+  assert.equal(result.status, "fail");
+  assert.ok(result.findings.some((finding) => /not an allowed signer/.test(finding.message)));
+});
+
+test("adversarial: an envelope does not authorize tampered commitments", async () => {
+  const tampered: Spec = {
+    ...FIXTURE_SPEC,
+    acceptance: [...FIXTURE_SPEC.acceptance, "and quietly grant more scope"],
+  };
+  const result = await checkAuthorization(
+    envelopeFacts(FIXTURE_SIG_GOOD),
+    "b",
+    tampered,
+    FIXTURE_SLUG,
+    [FIXTURE_SIGNER],
+  );
+  assert.equal(result.status, "fail");
+});
+
+test(`[01ky7p4fqhjjq9-red-attestation-and-signature-envelope-v2#2] a bare v1 base64 signature and a raw base64 signer key keep authorizing`, async () => {
+  const { signer, pair } = await newSigner("zygimantas");
+  const sig = await sign(pair, canonicalCommitments(SLUG, SPEC));
+  const result = await checkAuthorization(factsWith(sig), "b", SPEC, SLUG, [signer]);
+  assert.equal(result.status, "pass");
+  assert.match(result.findings[0]?.message ?? "", /authorized by zygimantas/);
 });

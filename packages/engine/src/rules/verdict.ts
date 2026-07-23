@@ -17,6 +17,7 @@ export type RuleId =
   | "evidence"
   | "acceptance"
   | "execution"
+  | "red"
   | "cardinality"
   | "reapproval"
   | "revert";

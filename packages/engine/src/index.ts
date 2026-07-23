@@ -42,6 +42,17 @@ export { checkEvidenceConsistency } from "./rules/evidence.js";
 export { mapAcceptance } from "./rules/acceptance.js";
 export { checkExecution } from "./rules/execution.js";
 export { canonicalCommitments, checkAuthorization } from "./rules/authorization.js";
+export { parseRedReceipt } from "./formats/red.js";
+export type { RedCase, RedReceipt } from "./formats/red.js";
+export { checkRed, redReceiptPath } from "./rules/red.js";
+export {
+  SSHSIG_NAMESPACE,
+  looksLikeSshSignature,
+  parseSshSignatures,
+  rawKeyFromSshPublicKey,
+  sshsigSignedData,
+} from "./formats/sshsig.js";
+export type { SshSignatureBlock, SshSignatureParse } from "./formats/sshsig.js";
 export { compareCardinality } from "./rules/cardinality.js";
 export { reapprovalFact } from "./rules/reapproval.js";
 export { checkRevert } from "./rules/revert.js";
