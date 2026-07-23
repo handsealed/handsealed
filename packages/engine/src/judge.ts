@@ -1,4 +1,5 @@
 import type { Facts, Oid, PathChange } from "@handsealed/facts";
+import type { SuiteResults } from "./formats/results.js";
 import { parseConfig, type AllowedSigner } from "./formats/config.js";
 import { parseSpec, type Spec } from "./formats/spec.js";
 import { extractMarkers, mapAcceptance } from "./rules/acceptance.js";
@@ -7,6 +8,7 @@ import { validateBinding } from "./rules/binding.js";
 import { reapprovalFact } from "./rules/reapproval.js";
 import { checkCeiling } from "./rules/ceiling.js";
 import { checkEvidenceConsistency } from "./rules/evidence.js";
+import { checkExecution } from "./rules/execution.js";
 import { matchesAny } from "./rules/glob.js";
 import { SPECS_DIR, classifyLane } from "./rules/lane.js";
 import { validateSpecLane } from "./rules/spec-lane.js";
@@ -108,6 +110,7 @@ async function implementationRules(
   head: Oid,
   changes: readonly PathChange[],
   config: LoadedConfig,
+  results?: readonly SuiteResults[],
 ): Promise<readonly RuleVerdict[]> {
   const binding = await validateBinding(facts, base, head, changes);
   if (!binding.ok) return [binding.verdict];
@@ -163,6 +166,9 @@ async function implementationRules(
     config.testRoots,
   );
   if (acceptance !== null) rules.push(acceptance);
+  if (results !== undefined) {
+    rules.push(checkExecution(binding.spec, binding.slug, results));
+  }
   return rules;
 }
 
@@ -188,6 +194,8 @@ async function isFlipOnly(
 export interface JudgeOptions {
   /** A previously approved head: the re-approval fact states what moved since. */
   readonly approved?: Oid;
+  /** Attested suite results from the judged head: adds the execution rule. */
+  readonly results?: readonly SuiteResults[];
 }
 
 async function laneRules(
@@ -196,6 +204,7 @@ async function laneRules(
   head: Oid,
   changes: readonly PathChange[],
   config: LoadedConfig,
+  results?: readonly SuiteResults[],
 ): Promise<readonly RuleVerdict[]> {
   const lane = classifyLane(changes, config.ok ? config.exemptPaths : []);
   if (lane.lane === "spec") {
@@ -203,12 +212,15 @@ async function laneRules(
       const routed = verdict("lane", "Lane: implementation", "pass", [
         { message: "flip-only change routed to the implementation lane" },
       ]);
-      return [routed, ...(await implementationRules(facts, base, head, changes, config))];
+      return [routed, ...(await implementationRules(facts, base, head, changes, config, results))];
     }
     return [lane.verdict, await validateSpecLane(facts, base, head, changes)];
   }
   if (lane.lane === "implementation") {
-    return [lane.verdict, ...(await implementationRules(facts, base, head, changes, config))];
+    return [
+      lane.verdict,
+      ...(await implementationRules(facts, base, head, changes, config, results)),
+    ];
   }
   return [lane.verdict];
 }
@@ -231,7 +243,7 @@ export async function judge(
     (change) => change.path === CONFIG_PATH || change.fromPath === CONFIG_PATH,
   );
   const config = await loadConfig(facts, base, configTouched);
-  const rules = [...(await laneRules(facts, base, head, changes, config))];
+  const rules = [...(await laneRules(facts, base, head, changes, config, options.results))];
   if (options.approved !== undefined) {
     rules.push(
       reapprovalFact(
