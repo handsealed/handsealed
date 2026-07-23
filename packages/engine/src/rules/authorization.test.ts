@@ -106,7 +106,6 @@ test("canonicalCommitments is stable and excludes status", () => {
 
 // --- the v2 SSHSIG envelope (fixtures are real ssh-keygen output) ---
 
-const V2_SLUG = "01ky7p4fqhjjq9-red-attestation-and-signature-envelope-v2";
 const FIXTURE_SIG_PATH = `specs/${FIXTURE_SLUG}.sig`;
 const FIXTURE_SIGNER: AllowedSigner = { name: "zygimantas", key: FIXTURE_PUB1 };
 
