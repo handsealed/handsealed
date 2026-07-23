@@ -91,7 +91,7 @@ test("[01ky65jxdkmk54-one-command-signing#2] the conventional key path is the de
   }
 });
 
-test("[01ky65jxdkmk54-one-command-signing#3] commitAndPush lands the signature on the branch and its remote", () => {
+test("[01ky65jxdkmk54-one-command-signing#3][01ky65tez70e3p-fix-the-sign-push-test-on-ci#1] commitAndPush lands the signature on the branch and its remote", () => {
   const dir = scratch();
   try {
     const remote = join(dir, "remote.git");
@@ -105,12 +105,15 @@ test("[01ky65jxdkmk54-one-command-signing#3] commitAndPush lands the signature o
       });
     git("config", "user.email", "t@t.dev");
     git("config", "user.name", "tester");
+    // Pin the branch name: an empty-repo clone names its unborn branch from
+    // the runner's init.defaultBranch, and `git push` under push.default
+    // simple refuses when branch and upstream names differ.
+    git("checkout", "-qb", "main");
     mkdirSync(join(repo, "specs"), { recursive: true });
     writeFileSync(join(repo, "specs", "01k0h3v9-unsigned.md"), MANDATE);
     git("add", "-A");
     git("commit", "-qm", "mandate");
-    git("push", "-q", "origin", "HEAD:main");
-    git("branch", "--set-upstream-to=origin/main");
+    git("push", "-qu", "origin", "main");
 
     writeFileSync(join(repo, "specs", "01k0h3v9-unsigned.sig"), "aGVsbG8=\n");
     const cwd = process.cwd();
