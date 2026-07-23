@@ -139,9 +139,8 @@ async function checkEnvelope(
  * one-shot (the signature itself is the authorization; forging it requires
  * the owner's key either way). Signers come from the base config; with none
  * configured the rule states so and does not gate, so flip adoption is
- * opt-in (the judge makes one-shots fail closed instead). Two signature
- * containers are accepted: the v2 OpenSSH SSHSIG envelope and the v1 bare
- * base64 blob — delivered history stays verifiable forever.
+ * opt-in (the judge makes one-shots fail closed instead). The one signature
+ * container is the OpenSSH SSHSIG envelope.
  */
 export async function checkAuthorization(
   facts: Facts,
@@ -162,31 +161,10 @@ export async function checkAuthorization(
       { message: "unauthorized: no code-owner signature for the mandate", path: sigPath },
     ]);
   }
-  const message = canonicalCommitments(slug, spec);
-  if (looksLikeSshSignature(raw)) {
-    return checkEnvelope(raw, sigPath, message, allowedSigners);
-  }
-  let signature: Uint8Array<ArrayBuffer>;
-  try {
-    signature = fromBase64(raw);
-  } catch {
+  if (!looksLikeSshSignature(raw)) {
     return verdict("authorization", TITLE, "fail", [
-      { message: "unauthorized: signature is not valid base64", path: sigPath },
+      { message: "unauthorized: the signature is not an SSH signature envelope", path: sigPath },
     ]);
   }
-  for (const signer of allowedSigners) {
-    const publicKey = rawSignerKey(signer.key);
-    if (publicKey === null) continue;
-    if (await verifiesUnder(publicKey, message, signature)) {
-      return verdict("authorization", TITLE, "pass", [
-        { message: `authorized by ${signer.name}`, path: sigPath },
-      ]);
-    }
-  }
-  return verdict("authorization", TITLE, "fail", [
-    {
-      message: "unauthorized: no allowed signer's signature covers the mandate's commitments",
-      path: sigPath,
-    },
-  ]);
+  return checkEnvelope(raw, sigPath, canonicalCommitments(slug, spec), allowedSigners);
 }

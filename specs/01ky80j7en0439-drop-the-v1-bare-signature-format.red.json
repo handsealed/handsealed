@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "sha": "78eb4a55b37610fa3ea8021400ab82cc37751fba",
+  "cases": [
+    {
+      "name": "[01ky80j7en0439-drop-the-v1-bare-signature-format#1] a bare base64 signature no longer authorizes",
+      "outcome": "fail"
+    },
+    {
+      "name": "[01ky80j7en0439-drop-the-v1-bare-signature-format#2] a bare base64 spec-lane companion is refused",
+      "outcome": "fail"
+    }
+  ]
+}

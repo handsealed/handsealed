@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/**
 outcome: One signature format. The v1 bare-base64 signature container is

@@ -5,6 +5,7 @@ import { memoryFacts } from "@handsealed/facts/memory";
 import type { PathChange } from "@handsealed/facts";
 import { parseSpec } from "./formats/spec.js";
 import { judge } from "./judge.js";
+import { SSHSIG_NAMESPACE, sshsigSignedData } from "./formats/sshsig.js";
 import { canonicalCommitments } from "./rules/authorization.js";
 
 const SLUG = "01k0h3v8-do-thing";
@@ -245,11 +246,32 @@ const oneshotSpec = () => {
   if (!parsed.ok) throw new Error("fixture spec must parse");
   return parsed.value;
 };
-const OWNER_SIG = sign(
-  null,
-  canonicalCommitments(ONESHOT_SLUG, oneshotSpec()),
-  privateKey,
-).toString("base64");
+const envelopeSign = async (message: Uint8Array<ArrayBuffer>): Promise<string> => {
+  const signedData = await sshsigSignedData(SSHSIG_NAMESPACE, "sha512", message);
+  const signature = sign(null, Buffer.from(signedData), privateKey);
+  const publicKeyRaw = Buffer.from(String(publicKey.export({ format: "jwk" }).x), "base64url");
+  const ws = (payload: Buffer): Buffer => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(payload.length);
+    return Buffer.concat([length, payload]);
+  };
+  const keyBlob = ws(Buffer.concat([ws(Buffer.from("ssh-ed25519")), ws(publicKeyRaw)]));
+  const sigBlob = ws(Buffer.concat([ws(Buffer.from("ssh-ed25519")), ws(signature)]));
+  const version = Buffer.alloc(4);
+  version.writeUInt32BE(1);
+  const blob = Buffer.concat([
+    Buffer.from("SSHSIG"),
+    version,
+    keyBlob,
+    ws(Buffer.from(SSHSIG_NAMESPACE)),
+    ws(Buffer.alloc(0)),
+    ws(Buffer.from("sha512")),
+    sigBlob,
+  ]);
+  const lines = blob.toString("base64").match(/.{1,70}/g) ?? [];
+  return `-----BEGIN SSH SIGNATURE-----\n${lines.join("\n")}\n-----END SSH SIGNATURE-----\n`;
+};
+const OWNER_SIG = await envelopeSign(canonicalCommitments(ONESHOT_SLUG, oneshotSpec()));
 const ONESHOT_CHANGES: PathChange[] = [
   { path: ONESHOT_MD, kind: "added" },
   { path: ONESHOT_SIG, kind: "added" },
@@ -301,7 +323,7 @@ test("[01ky58xnhgf9gw-signed-one-shot-delivery#2] adversarial: a tampered one-sh
   const verdicts = await judge(facts, "b", "h");
   assert.equal(verdicts.overall, "fail");
   const authorization = verdicts.rules.find((r) => r.rule === "authorization");
-  assert.match(authorization?.findings[0]?.message ?? "", /no allowed signer/);
+  assert.match(authorization?.findings[0]?.message ?? "", /SSH signature envelope/);
 });
 
 test("[01ky58xnhgf9gw-signed-one-shot-delivery#2] adversarial: one-shot without configured signers is refused", async () => {
