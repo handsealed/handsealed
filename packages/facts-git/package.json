@@ -1,6 +1,6 @@
 {
   "name": "@handsealed/facts-git",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "The single git facts implementation for Handsealed: plumbing-only, bare-clone-compatible.",
   "license": "Apache-2.0",
   "repository": {
@@ -27,7 +27,7 @@
     "provenance": true
   },
   "dependencies": {
-    "@handsealed/facts": "^0.7.0"
+    "@handsealed/facts": "^0.7.1"
   },
   "engines": {
     "node": ">=22"

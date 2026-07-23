@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: non-additive
 paths: packages/** package-lock.json
 outcome: Publish 0.7.1 - the patch carrying the fork-point fix for the red
