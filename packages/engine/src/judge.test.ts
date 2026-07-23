@@ -3,7 +3,7 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
 import type { PathChange } from "@handsealed/facts";
-import { parseSpec } from "./formats/spec.js";
+import { parseMandate } from "./formats/mandate.js";
 import { judge } from "./judge.js";
 import { SSHSIG_NAMESPACE, sshsigSignedData } from "./formats/sshsig.js";
 import { canonicalCommitments } from "./rules/authorization.js";
@@ -171,7 +171,7 @@ test("spec lane runs spec validation only", async () => {
   assert.equal(verdicts.overall, "pass");
   assert.deepEqual(
     verdicts.rules.map((r) => r.rule),
-    ["lane", "spec-lane"],
+    ["lane", "mandate-lane"],
   );
 });
 
@@ -185,7 +185,7 @@ test("an amendment (lone modified spec, still open) stays in the spec lane", asy
   assert.equal(verdicts.overall, "pass");
   assert.deepEqual(
     verdicts.rules.map((r) => r.rule),
-    ["lane", "spec-lane"],
+    ["lane", "mandate-lane"],
   );
 });
 
@@ -196,7 +196,7 @@ test("[01ky2z5m3a9dfe-harden-the-judge-against-reopen-and-config-edits#1] advers
   });
   const verdicts = await judge(facts, "b", "h");
   assert.equal(verdicts.overall, "fail");
-  const specLane = verdicts.rules.find((r) => r.rule === "spec-lane");
+  const specLane = verdicts.rules.find((r) => r.rule === "mandate-lane");
   assert.match(specLane?.findings[0]?.message ?? "", /immutable history/);
 });
 
@@ -242,7 +242,7 @@ const ONESHOT_MD = `specs/${ONESHOT_SLUG}.md`;
 const ONESHOT_SIG = `specs/${ONESHOT_SLUG}.sig`;
 const ONESHOT = `status: delivered\nevidence: additive\npaths: src/**\noutcome: One shot.\nacceptance:\n- It lands.\n`;
 const oneshotSpec = () => {
-  const parsed = parseSpec(ONESHOT);
+  const parsed = parseMandate(ONESHOT);
   if (!parsed.ok) throw new Error("fixture spec must parse");
   return parsed.value;
 };
@@ -357,7 +357,7 @@ test("[01ky58xnhgf9gw-signed-one-shot-delivery#3] the spec lane accepts a mandat
   );
   const verdicts = await judge(facts, "b", "h");
   assert.equal(verdicts.overall, "pass");
-  const specLane = verdicts.rules.find((r) => r.rule === "spec-lane");
+  const specLane = verdicts.rules.find((r) => r.rule === "mandate-lane");
   assert.match(specLane?.findings[0]?.message ?? "", /1 signature companion/);
 });
 

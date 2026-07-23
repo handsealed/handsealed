@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { checkAuthorization, parseSshSignatures } from "@handsealed/engine";
 import { memoryFacts } from "@handsealed/facts/memory";
-import { generateSigningKey } from "./spec-sign.js";
+import { generateSigningKey } from "./mandate-sign.js";
 import { isOpensshPrivateKey, sshsigSignWithPem, sshsigSignWithSshKeygen } from "./sshsig-emit.js";
 
 // The engine's SSHSIG fixtures pin verification against real ssh-keygen

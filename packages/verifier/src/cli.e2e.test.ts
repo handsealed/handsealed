@@ -154,7 +154,7 @@ test("the markdown mode renders the verdict and usage errors exit 2", async () =
     const result = await runCli(["verify", "--repo", repo.dir, "--base", base, "--head", head]);
     assert.equal(result.code, 0);
     assert.match(result.stdout, /## Handsealed verdict: ✓ PASS/);
-    const usage = await runCli(["verify"]);
+    const usage = await runCli(["nonsense"]);
     assert.equal(usage.code, 2);
     const unknown = await runCli(["frobnicate"]);
     assert.equal(unknown.code, 2);

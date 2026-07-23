@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/** .gitignore
 outcome: The product sells mandates; the code now says so. The user-facing

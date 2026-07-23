@@ -9,7 +9,7 @@
 /** Every rule the judge can render — exhaustive, for consumers to switch on. */
 export type RuleId =
   | "lane"
-  | "spec-lane"
+  | "mandate-lane"
   | "binding"
   | "authorization"
   | "config"

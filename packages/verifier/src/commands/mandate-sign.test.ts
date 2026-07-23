@@ -3,9 +3,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { checkAuthorization, parseSpec, parseSshSignatures } from "@handsealed/engine";
+import { checkAuthorization, parseMandate, parseSshSignatures } from "@handsealed/engine";
 import { memoryFacts } from "@handsealed/facts/memory";
-import { generateSigningKey, specSign } from "./spec-sign.js";
+import { generateSigningKey, signMandate } from "./mandate-sign.js";
 
 const MANDATE = `status: open
 evidence: additive
@@ -31,7 +31,7 @@ test("[01ky4s3m2j4mcc-spec-sign-cli-for-code-owners#2] spec sign writes an SSHSI
     writeFileSync(join(dir, `${slug}.md`), MANDATE);
     const keyPath = join(dir, "key.pem");
     writeFileSync(keyPath, generateSigningKey().privateKeyPem);
-    const sigPath = specSign(slug, { dir, keyPath });
+    const sigPath = signMandate(slug, { dir, keyPath });
     assert.equal(sigPath, join(dir, `${slug}.sig`));
     const envelope = readFileSync(sigPath, "utf8");
     assert.match(envelope, /-----BEGIN SSH SIGNATURE-----/);
@@ -48,7 +48,7 @@ test("[01ky4s3m2j4mcc-spec-sign-cli-for-code-owners#2] spec sign refuses a missi
   try {
     const keyPath = join(dir, "key.pem");
     writeFileSync(keyPath, generateSigningKey().privateKeyPem);
-    assert.throws(() => specSign("01ky4s3m2j4mcc-nope", { dir, keyPath }), /mandate not found/);
+    assert.throws(() => signMandate("01ky4s3m2j4mcc-nope", { dir, keyPath }), /mandate not found/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -62,9 +62,9 @@ test("[01ky4s3m2j4mcc-spec-sign-cli-for-code-owners#3] a signature spec sign pro
     const { privateKeyPem, publicKey } = generateSigningKey();
     const keyPath = join(dir, "key.pem");
     writeFileSync(keyPath, privateKeyPem);
-    const sig = readFileSync(specSign(slug, { dir, keyPath }), "utf8");
+    const sig = readFileSync(signMandate(slug, { dir, keyPath }), "utf8");
 
-    const parsed = parseSpec(MANDATE);
+    const parsed = parseMandate(MANDATE);
     assert.equal(parsed.ok, true);
     if (!parsed.ok) return;
     const facts = memoryFacts({ changes: [], files: { [`b:specs/${slug}.sig`]: sig } });

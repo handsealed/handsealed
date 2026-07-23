@@ -1,13 +1,13 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { PathChange } from "@handsealed/facts";
-import type { Spec } from "../formats/spec.js";
+import type { Mandate } from "../formats/mandate.js";
 import { checkCeiling } from "./ceiling.js";
 import { globToRegExp, matchesPattern } from "./glob.js";
 
 const FLIP = "specs/01k0h3v8-a.md";
-const spec = (paths?: string[]): Spec => {
-  const base: Spec = {
+const spec = (paths?: string[]): Mandate => {
+  const base: Mandate = {
     status: "delivered",
     evidence: "additive",
     outcome: "x",

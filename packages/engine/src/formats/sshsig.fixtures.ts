@@ -7,12 +7,12 @@
  * authority.
  */
 
-import type { Spec } from "./spec.js";
+import type { Mandate } from "./mandate.js";
 
 export const FIXTURE_SLUG = "01abcdefgh2345-fixture-mandate";
 
 /** A spec whose canonicalCommitments are exactly FIXTURE_COMMITMENTS. */
-export const FIXTURE_SPEC: Spec = {
+export const FIXTURE_SPEC: Mandate = {
   status: "delivered",
   evidence: "additive",
   paths: ["packages/**"],

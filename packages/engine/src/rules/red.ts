@@ -1,6 +1,6 @@
 import type { Facts, Oid, PathChange } from "@handsealed/facts";
 import { parseRedReceipt } from "../formats/red.js";
-import type { Spec } from "../formats/spec.js";
+import type { Mandate } from "../formats/mandate.js";
 import { matchesAny } from "./glob.js";
 import { SPECS_DIR } from "./lane.js";
 import type { Finding, RuleVerdict } from "./verdict.js";
@@ -30,7 +30,7 @@ export async function checkRed(
   facts: Facts,
   base: Oid,
   head: Oid,
-  spec: Spec,
+  spec: Mandate,
   slug: string,
   changes: readonly PathChange[],
   testRoots: readonly string[],

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { isValidSpecFilename, parseSpec, printSpec } from "./spec.js";
+import { isValidMandateFilename, parseMandate, printMandate } from "./mandate.js";
 
 const VALID = `status: open
 evidence: additive
@@ -12,7 +12,7 @@ acceptance:
 `;
 
 test("parses a valid spec", () => {
-  const result = parseSpec(VALID);
+  const result = parseMandate(VALID);
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.value.status, "open");
@@ -31,7 +31,7 @@ outcome: A paragraph that wraps
 acceptance:
 - One bullet.
 `;
-  const result = parseSpec(source);
+  const result = parseMandate(source);
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.value.smoke, "verified on a physical device");
@@ -39,15 +39,15 @@ acceptance:
 });
 
 test("round-trip stability: parse(print(parse(x))) equals parse(x)", () => {
-  const first = parseSpec(VALID);
+  const first = parseMandate(VALID);
   assert.equal(first.ok, true);
   if (!first.ok) return;
-  const printed = printSpec(first.value);
-  const second = parseSpec(printed);
+  const printed = printMandate(first.value);
+  const second = parseMandate(printed);
   assert.equal(second.ok, true);
   if (!second.ok) return;
   assert.deepEqual(second.value, first.value);
-  assert.equal(printSpec(second.value), printed);
+  assert.equal(printMandate(second.value), printed);
 });
 
 const INVALID: Array<{ name: string; source: string; expect: string; line?: number }> = [
@@ -125,7 +125,7 @@ const INVALID: Array<{ name: string; source: string; expect: string; line?: numb
 
 for (const fixture of INVALID) {
   test(`rejects: ${fixture.name}`, () => {
-    const result = parseSpec(fixture.source);
+    const result = parseMandate(fixture.source);
     assert.equal(result.ok, false, "expected failure");
     if (result.ok) return;
     const hit = result.issues.find((i) => i.message.includes(fixture.expect));
@@ -139,7 +139,7 @@ for (const fixture of INVALID) {
 }
 
 test("[01ky2zt4z52xsr-polish-the-delivery-surface#2] adversarial: a CRLF spec is rejected with a single clear issue", () => {
-  const result = parseSpec(
+  const result = parseMandate(
     "status: open\r\nevidence: exempt\r\noutcome: X.\r\nacceptance:\r\n- A.\r\n",
   );
   assert.equal(result.ok, false);
@@ -155,7 +155,7 @@ test("spec filenames: sortable base32 prefix + kebab slug", () => {
     "01hzxw2p9qk4-fix-login.md",
     "abcdefgh-a.md",
   ]) {
-    assert.equal(isValidSpecFilename(good), true, good);
+    assert.equal(isValidMandateFilename(good), true, good);
   }
   for (const bad of [
     "42-feature.md",
@@ -166,6 +166,6 @@ test("spec filenames: sortable base32 prefix + kebab slug", () => {
     "01k0h3vi-has-i.md",
     "specs/01k0h3v8-nested.md",
   ]) {
-    assert.equal(isValidSpecFilename(bad), false, bad);
+    assert.equal(isValidMandateFilename(bad), false, bad);
   }
 });

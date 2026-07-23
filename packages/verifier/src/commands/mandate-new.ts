@@ -37,7 +37,7 @@ export function renderSpecTemplate(): string {
   ].join("\n");
 }
 
-export function specNew(
+export function mandateNew(
   words: readonly string[],
   options: { dir?: string; nowMs?: number } = {},
 ): string {

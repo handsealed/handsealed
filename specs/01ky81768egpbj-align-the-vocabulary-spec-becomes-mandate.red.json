@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "sha": "3cd4b47bedd3bc6649e23f638cd12fa261139752",
+  "cases": [
+    {
+      "name": "[01ky81768egpbj-align-the-vocabulary-spec-becomes-mandate#1] the engine exports the mandate vocabulary",
+      "outcome": "fail"
+    },
+    {
+      "name": "[01ky81768egpbj-align-the-vocabulary-spec-becomes-mandate#2] the CLI mints with mandate new and the spec verb is gone",
+      "outcome": "fail"
+    },
+    {
+      "name": "[01ky81768egpbj-align-the-vocabulary-spec-becomes-mandate#3] verify without flags judges origin/main..HEAD",
+      "outcome": "fail"
+    }
+  ]
+}

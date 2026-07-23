@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { memoryFacts } from "@handsealed/facts/memory";
 import type { PathChange } from "@handsealed/facts";
 import { FIXTURE_SIG_GOOD } from "../formats/sshsig.fixtures.js";
-import { validateSpecLane } from "./spec-lane.js";
+import { validateMandateLane } from "./mandate-lane.js";
 
 const factsWith = (files: Record<string, string>) => memoryFacts({ files });
 
@@ -13,13 +13,13 @@ const added = (path: string, kind: PathChange["kind"] = "added"): PathChange => 
 
 test("valid open specs pass", async () => {
   const facts = factsWith({ [`h:${PATH}`]: OPEN });
-  const result = await validateSpecLane(facts, "b", "h", [added(PATH)]);
+  const result = await validateMandateLane(facts, "b", "h", [added(PATH)]);
   assert.equal(result.status, "pass");
 });
 
 test("adversarial: a spec-lane change may not deliver its own mandate", async () => {
   const facts = factsWith({ [`h:${PATH}`]: OPEN.replace("status: open", "status: delivered") });
-  const result = await validateSpecLane(facts, "b", "h", [added(PATH)]);
+  const result = await validateMandateLane(facts, "b", "h", [added(PATH)]);
   assert.equal(result.status, "fail");
   assert.match(result.findings[0]?.message ?? "", /flips happen in implementation changes/);
 });
@@ -29,7 +29,7 @@ test("adversarial: a delivered mandate is immutable — reopening it is refused"
     [`b:${PATH}`]: OPEN.replace("status: open", "status: delivered"),
     [`h:${PATH}`]: OPEN,
   });
-  const result = await validateSpecLane(facts, "b", "h", [added(PATH, "modified")]);
+  const result = await validateMandateLane(facts, "b", "h", [added(PATH, "modified")]);
   assert.equal(result.status, "fail");
   assert.match(result.findings[0]?.message ?? "", /immutable history/);
 });
@@ -39,7 +39,7 @@ test("an amendment to a still-open mandate passes", async () => {
     [`b:${PATH}`]: OPEN,
     [`h:${PATH}`]: OPEN.replace("Do the thing.", "Do the amended thing."),
   });
-  const result = await validateSpecLane(facts, "b", "h", [added(PATH, "modified")]);
+  const result = await validateMandateLane(facts, "b", "h", [added(PATH, "modified")]);
   assert.equal(result.status, "pass");
 });
 
@@ -48,14 +48,14 @@ test("a signature companion alongside an open spec passes", async () => {
     [`h:${PATH}`]: OPEN,
     "h:specs/01k0h3v8-do-thing.sig": FIXTURE_SIG_GOOD,
   });
-  const result = await validateSpecLane(facts, "b", "h", [
+  const result = await validateMandateLane(facts, "b", "h", [
     added(PATH),
     added("specs/01k0h3v8-do-thing.sig"),
   ]);
   assert.equal(result.status, "pass");
   assert.match(
     result.findings[0]?.message ?? "",
-    /1 spec\(s\) valid and open; 1 signature companion/,
+    /1 mandate\(s\) valid and open; 1 signature companion/,
   );
 });
 
@@ -64,7 +64,7 @@ test("adversarial: a signature companion that is not base64 fails", async () => 
     [`h:${PATH}`]: OPEN,
     "h:specs/01k0h3v8-do-thing.sig": "not base64!!\n",
   });
-  const result = await validateSpecLane(facts, "b", "h", [
+  const result = await validateMandateLane(facts, "b", "h", [
     added(PATH),
     added("specs/01k0h3v8-do-thing.sig"),
   ]);
@@ -74,7 +74,7 @@ test("adversarial: a signature companion that is not base64 fails", async () => 
 
 test("deletes, renames, bad filenames, and unparseable specs fail by name", async () => {
   const facts = factsWith({ [`h:specs/42-bad.md`]: OPEN, [`h:${PATH}`]: "garbage\n" });
-  const result = await validateSpecLane(facts, "b", "h", [
+  const result = await validateMandateLane(facts, "b", "h", [
     added("specs/01k0h3v9-old.md", "deleted"),
     added("specs/42-bad.md"),
     added(PATH, "modified"),
@@ -86,11 +86,11 @@ test("deletes, renames, bad filenames, and unparseable specs fail by name", asyn
     true,
   );
   assert.equal(
-    messages.some((m) => m.includes("invalid spec filename")),
+    messages.some((m) => m.includes("invalid mandate filename")),
     true,
   );
   assert.equal(
-    messages.some((m) => m.includes("invalid spec:")),
+    messages.some((m) => m.includes("invalid mandate:")),
     true,
   );
 });
@@ -109,7 +109,7 @@ test("an SSHSIG envelope companion is welcome in the spec lane (pre-authorizatio
     [`h:${PATH}`]: OPEN,
     "h:specs/01k0h3v8-do-thing.sig": envelope,
   });
-  const result = await validateSpecLane(facts, "b", "h", [
+  const result = await validateMandateLane(facts, "b", "h", [
     added(PATH),
     added("specs/01k0h3v8-do-thing.sig"),
   ]);
@@ -118,7 +118,7 @@ test("an SSHSIG envelope companion is welcome in the spec lane (pre-authorizatio
 
 test("adversarial: a red receipt may not ride the spec lane", async () => {
   const facts = factsWith({ [`h:${PATH}`]: OPEN });
-  const result = await validateSpecLane(facts, "b", "h", [
+  const result = await validateMandateLane(facts, "b", "h", [
     added(PATH),
     added("specs/01k0h3v8-do-thing.red.json"),
   ]);

@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { parseSpec, type Spec } from "@handsealed/engine";
-import { specSign } from "./spec-sign.js";
+import { parseMandate, type Mandate } from "@handsealed/engine";
+import { signMandate } from "./mandate-sign.js";
 
 /** The conventional code-owner key location; `--key` overrides. */
 export const DEFAULT_KEY_PATH = join(homedir(), ".handsealed", "key.pem");
@@ -11,7 +11,7 @@ export const DEFAULT_KEY_PATH = join(homedir(), ".handsealed", "key.pem");
 export interface UnsignedMandate {
   readonly slug: string;
   readonly path: string;
-  readonly spec: Spec;
+  readonly spec: Mandate;
 }
 
 /**
@@ -32,7 +32,7 @@ export function unsignedFrom(
     if (hasSignature(sigPath)) continue;
     const source = read(path);
     if (source === null) continue;
-    const parsed = parseSpec(source);
+    const parsed = parseMandate(source);
     if (!parsed.ok) continue;
     const filename = path.slice(path.lastIndexOf("/") + 1);
     mandates.push({ slug: filename.slice(0, -".md".length), path, spec: parsed.value });
@@ -92,7 +92,7 @@ export function signAll(
   mandates: readonly UnsignedMandate[],
   { keyPath, dir = "specs" }: { keyPath: string; dir?: string },
 ): string[] {
-  return mandates.map((mandate) => specSign(mandate.slug, { dir, keyPath }));
+  return mandates.map((mandate) => signMandate(mandate.slug, { dir, keyPath }));
 }
 
 /** Land the signatures on the branch: one commit, optionally pushed. */

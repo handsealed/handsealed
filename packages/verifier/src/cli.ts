@@ -12,7 +12,7 @@ import { createGitFacts } from "@handsealed/facts-git";
 import { evidenceRun, renderEvidenceSummary } from "./commands/evidence.js";
 import { buildRedReceipt, renderRedReceipt } from "./commands/red.js";
 import { buildNodeTestArgs } from "./commands/results.js";
-import { specNew } from "./commands/spec-new.js";
+import { mandateNew } from "./commands/mandate-new.js";
 import {
   changedSpecPaths,
   commitAndPush,
@@ -21,19 +21,20 @@ import {
   signAll,
   unsignedFrom,
 } from "./commands/sign.js";
-import { generateSigningKey } from "./commands/spec-sign.js";
+import { generateSigningKey } from "./commands/mandate-sign.js";
 
 const USAGE = `handsealed <command>
 
 commands:
-  verify --base <rev> --head <rev> [--approved <rev>] [--repo <dir>]
+  verify [--base <rev>] [--head <rev>] [--approved <rev>] [--repo <dir>]
          [--results <file>...] [--json]
-      Replay the offline judge over base..head. Exit 0 pass, 1 fail.
+      Replay the offline judge over base..head (default origin/main..HEAD).
+      Exit 0 pass, 1 fail.
       With --approved, the re-approval fact states what moved since that head.
       With --results (repeatable handsealed-results.json files), the verdict
       gains the execution rule: suites ran clean and every additive
       acceptance bullet was executed as a passing, marker-named case.
-  spec new <words...> [--dir specs]
+  mandate new <words...> [--dir specs]
       Mint an open mandate with a sortable, collision-proof filename.
   keygen [--out <file>]
       Mint an Ed25519 signing keypair: the PKCS8 private key to <file>, the
@@ -59,18 +60,14 @@ async function runVerify(argv: string[]): Promise<number> {
   const { values } = parseArgs({
     args: argv,
     options: {
-      base: { type: "string" },
-      head: { type: "string" },
+      base: { type: "string", default: "origin/main" },
+      head: { type: "string", default: "HEAD" },
       approved: { type: "string" },
       repo: { type: "string", default: "." },
       results: { type: "string", multiple: true },
       json: { type: "boolean", default: false },
     },
   });
-  if (values.base === undefined || values.head === undefined) {
-    process.stderr.write("verify requires --base and --head\n");
-    return 2;
-  }
   let results: SuiteResults[] | undefined;
   if (values.results !== undefined && values.results.length > 0) {
     results = [];
@@ -103,7 +100,7 @@ async function runVerify(argv: string[]): Promise<number> {
   return verdicts.overall === "pass" ? 0 : 1;
 }
 
-function runSpec(argv: string[]): number {
+function runMandate(argv: string[]): number {
   const [sub, ...rest] = argv;
   if (sub === "new") {
     const { values, positionals } = parseArgs({
@@ -111,7 +108,7 @@ function runSpec(argv: string[]): number {
       options: { dir: { type: "string", default: "specs" } },
       allowPositionals: true,
     });
-    const path = specNew(positionals, { dir: values.dir ?? "specs" });
+    const path = mandateNew(positionals, { dir: values.dir ?? "specs" });
     process.stdout.write(`${path}\n`);
     return 0;
   }
@@ -290,7 +287,7 @@ async function main(): Promise<number> {
   const [command, ...rest] = process.argv.slice(2);
   try {
     if (command === "verify") return await runVerify(rest);
-    if (command === "spec") return runSpec(rest);
+    if (command === "mandate") return runMandate(rest);
     if (command === "sign") return await runSign(rest);
     if (command === "keygen") return runKeygen(rest);
     if (command === "red") return runRed(rest);
