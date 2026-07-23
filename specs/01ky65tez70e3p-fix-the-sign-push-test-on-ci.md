@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/**
 outcome: The sign verb's push e2e passes on any runner. The fixture pins its
