@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/**
 outcome: The verdict stops taking test evidence on faith. verify accepts

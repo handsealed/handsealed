@@ -406,3 +406,82 @@ test("[01ky6366kq7a86-exempt-paths-for-the-maintenance-lane#3] a config without 
   const binding = verdicts.rules.find((r) => r.rule === "binding");
   assert.match(binding?.findings[0]?.message ?? "", /no mandate/);
 });
+
+// --- evidence execution (attested results) ---
+
+test("[01ky67bhen2xbe-evidence-execution-attestation#1] attested results add the execution rule to the verdict", async () => {
+  const facts = factsFor(
+    [
+      { path: FLIP, kind: "modified" },
+      { path: "src/a.ts", kind: "modified" },
+      { path: "test/a.test.ts", kind: "added" },
+    ],
+    {
+      [`b:${FLIP}`]: OPEN,
+      [`h:${FLIP}`]: DELIVERED,
+      "b:.handsealed.yml": CONFIG,
+      "h:test/a.test.ts": MARKED_TEST,
+    },
+  );
+  const results = [
+    {
+      version: 1 as const,
+      suite: "scripts",
+      cases: [{ name: `[${SLUG}#1] it works`, outcome: "pass" as const }],
+    },
+  ];
+  const verdicts = await judge(facts, "b", "h", { results });
+  assert.equal(verdicts.overall, "pass");
+  assert.deepEqual(
+    verdicts.rules.map((r) => r.rule),
+    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance", "execution"],
+  );
+});
+
+test("[01ky67bhen2xbe-evidence-execution-attestation#3] verify without results keeps the verdict exactly as today", async () => {
+  const facts = factsFor(
+    [
+      { path: FLIP, kind: "modified" },
+      { path: "src/a.ts", kind: "modified" },
+      { path: "test/a.test.ts", kind: "added" },
+    ],
+    {
+      [`b:${FLIP}`]: OPEN,
+      [`h:${FLIP}`]: DELIVERED,
+      "b:.handsealed.yml": CONFIG,
+      "h:test/a.test.ts": MARKED_TEST,
+    },
+  );
+  const verdicts = await judge(facts, "b", "h");
+  assert.deepEqual(
+    verdicts.rules.map((r) => r.rule),
+    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance"],
+  );
+});
+
+test("[01ky67bhen2xbe-evidence-execution-attestation#2] adversarial: attested results without the executed marker fail the delivery", async () => {
+  const facts = factsFor(
+    [
+      { path: FLIP, kind: "modified" },
+      { path: "src/a.ts", kind: "modified" },
+      { path: "test/a.test.ts", kind: "added" },
+    ],
+    {
+      [`b:${FLIP}`]: OPEN,
+      [`h:${FLIP}`]: DELIVERED,
+      "b:.handsealed.yml": CONFIG,
+      "h:test/a.test.ts": MARKED_TEST,
+    },
+  );
+  const results = [
+    {
+      version: 1 as const,
+      suite: "scripts",
+      cases: [{ name: "unrelated green test", outcome: "pass" as const }],
+    },
+  ];
+  const verdicts = await judge(facts, "b", "h", { results });
+  assert.equal(verdicts.overall, "fail");
+  const execution = verdicts.rules.find((r) => r.rule === "execution");
+  assert.match(execution?.findings[0]?.message ?? "", /not executed/);
+});

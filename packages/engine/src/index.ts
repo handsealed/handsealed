@@ -40,6 +40,7 @@ export type { BindingResult } from "./rules/binding.js";
 export { checkCeiling } from "./rules/ceiling.js";
 export { checkEvidenceConsistency } from "./rules/evidence.js";
 export { mapAcceptance } from "./rules/acceptance.js";
+export { checkExecution } from "./rules/execution.js";
 export { canonicalCommitments, checkAuthorization } from "./rules/authorization.js";
 export { compareCardinality } from "./rules/cardinality.js";
 export { reapprovalFact } from "./rules/reapproval.js";

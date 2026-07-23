@@ -5,9 +5,9 @@
  * Don't trust us; run it yourself.
  */
 import { spawn } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { judge, renderMarkdown } from "@handsealed/engine";
+import { judge, parseResults, renderMarkdown, type SuiteResults } from "@handsealed/engine";
 import { createGitFacts } from "@handsealed/facts-git";
 import { evidenceRun, renderEvidenceSummary } from "./commands/evidence.js";
 import { buildNodeTestArgs } from "./commands/results.js";
@@ -25,9 +25,13 @@ import { generateSigningKey, specSign } from "./commands/spec-sign.js";
 const USAGE = `handsealed <command>
 
 commands:
-  verify --base <rev> --head <rev> [--approved <rev>] [--repo <dir>] [--json]
+  verify --base <rev> --head <rev> [--approved <rev>] [--repo <dir>]
+         [--results <file>...] [--json]
       Replay the offline judge over base..head. Exit 0 pass, 1 fail.
       With --approved, the re-approval fact states what moved since that head.
+      With --results (repeatable handsealed-results.json files), the verdict
+      gains the execution rule: suites ran clean and every additive
+      acceptance bullet was executed as a passing, marker-named case.
   spec new <words...> [--dir specs]
       Mint an open mandate with a sortable, collision-proof filename.
   spec sign <slug> --key <file> [--dir specs]
@@ -57,6 +61,7 @@ async function runVerify(argv: string[]): Promise<number> {
       head: { type: "string" },
       approved: { type: "string" },
       repo: { type: "string", default: "." },
+      results: { type: "string", multiple: true },
       json: { type: "boolean", default: false },
     },
   });
@@ -64,13 +69,32 @@ async function runVerify(argv: string[]): Promise<number> {
     process.stderr.write("verify requires --base and --head\n");
     return 2;
   }
+  let results: SuiteResults[] | undefined;
+  if (values.results !== undefined && values.results.length > 0) {
+    results = [];
+    for (const path of values.results) {
+      let source: string;
+      try {
+        source = readFileSync(path, "utf8");
+      } catch {
+        process.stderr.write(`could not read results file ${path}\n`);
+        return 2;
+      }
+      const parsed = parseResults(source);
+      if (!parsed.ok) {
+        for (const problem of parsed.issues) {
+          process.stderr.write(`${path}: ${problem.message}\n`);
+        }
+        return 2;
+      }
+      results.push(parsed.value);
+    }
+  }
   const facts = createGitFacts(values.repo ?? ".");
-  const verdicts = await judge(
-    facts,
-    values.base,
-    values.head,
-    values.approved === undefined ? {} : { approved: values.approved },
-  );
+  const verdicts = await judge(facts, values.base, values.head, {
+    ...(values.approved === undefined ? {} : { approved: values.approved }),
+    ...(results === undefined ? {} : { results }),
+  });
   process.stdout.write(
     values.json === true ? `${JSON.stringify(verdicts)}\n` : renderMarkdown(verdicts),
   );
