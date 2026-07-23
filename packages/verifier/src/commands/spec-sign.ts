@@ -1,7 +1,8 @@
-import { createPrivateKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto";
+import { generateKeyPairSync, type KeyObject } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { canonicalCommitments, parseSpec } from "@handsealed/engine";
+import { isOpensshPrivateKey, sshsigSignWithPem, sshsigSignWithSshKeygen } from "./sshsig-emit.js";
 
 /** The raw 32-byte Ed25519 public key as base64 — the form `.handsealed.yml` allowedSigners expects. */
 export function publicKeyBase64(key: KeyObject): string {
@@ -34,8 +35,10 @@ export interface SignOptions {
 }
 
 /**
- * Sign a mandate's commitments with a code owner's Ed25519 private key and write
- * the sibling `<slug>.sig` the authorization rule verifies. Returns its path.
+ * Sign a mandate's commitments with a code owner's key and write the sibling
+ * `<slug>.sig` the authorization rule verifies. Emits the v2 SSHSIG envelope:
+ * a PKCS8 PEM key signs in-process; an OpenSSH key (including hardware `sk-`)
+ * delegates to `ssh-keygen -Y sign`. Returns the signature path.
  */
 export function specSign(rawSlug: string, options: SignOptions): string {
   const slug = rawSlug.replace(/\.md$/, "").replace(/^.*\//, "");
@@ -52,9 +55,12 @@ export function specSign(rawSlug: string, options: SignOptions): string {
       `cannot sign an invalid mandate: ${parsed.issues.map((issue) => issue.message).join("; ")}`,
     );
   }
-  const privateKey = createPrivateKey(readFileSync(options.keyPath, "utf8"));
-  const signature = sign(null, canonicalCommitments(slug, parsed.value), privateKey);
+  const commitments = canonicalCommitments(slug, parsed.value);
+  const keyText = readFileSync(options.keyPath, "utf8");
+  const envelope = isOpensshPrivateKey(keyText)
+    ? sshsigSignWithSshKeygen(commitments, options.keyPath)
+    : sshsigSignWithPem(commitments, keyText);
   const sigPath = join(options.dir, `${slug}.sig`);
-  writeFileSync(sigPath, `${signature.toString("base64")}\n`);
+  writeFileSync(sigPath, envelope.endsWith("\n") ? envelope : `${envelope}\n`);
   return sigPath;
 }

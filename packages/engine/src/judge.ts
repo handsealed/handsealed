@@ -9,6 +9,7 @@ import { reapprovalFact } from "./rules/reapproval.js";
 import { checkCeiling } from "./rules/ceiling.js";
 import { checkEvidenceConsistency } from "./rules/evidence.js";
 import { checkExecution } from "./rules/execution.js";
+import { checkRed } from "./rules/red.js";
 import { matchesAny } from "./rules/glob.js";
 import { SPECS_DIR, classifyLane } from "./rules/lane.js";
 import { validateSpecLane } from "./rules/spec-lane.js";
@@ -23,6 +24,7 @@ type LoadedConfig =
       readonly testRoots: readonly string[];
       readonly allowedSigners: readonly AllowedSigner[];
       readonly exemptPaths: readonly string[];
+      readonly redRequired: "off" | "additive";
       readonly verdict: RuleVerdict | null;
     }
   | { readonly ok: false; readonly verdict: RuleVerdict };
@@ -65,6 +67,7 @@ async function loadConfig(facts: Facts, base: Oid, configTouched: boolean): Prom
     testRoots: parsed.value.testRoots,
     allowedSigners: parsed.value.allowedSigners ?? [],
     exemptPaths: parsed.value.exemptPaths ?? [],
+    redRequired: parsed.value.redRequired ?? "off",
     verdict: configTouched
       ? verdict("config", "Config", "attention", [
           {
@@ -146,7 +149,8 @@ async function implementationRules(
     );
   }
   const sigPath = `${SPECS_DIR}${binding.slug}.sig`;
-  const judged = changes.filter((change) => change.path !== sigPath);
+  const receiptPath = `${SPECS_DIR}${binding.slug}.red.json`;
+  const judged = changes.filter((change) => change.path !== sigPath && change.path !== receiptPath);
   rules.push(
     checkCeiling(binding.spec, judged, binding.flipPath, config.testRoots, config.exemptPaths),
     checkEvidenceConsistency(
@@ -166,6 +170,17 @@ async function implementationRules(
     config.testRoots,
   );
   if (acceptance !== null) rules.push(acceptance);
+  const red = await checkRed(
+    facts,
+    base,
+    head,
+    binding.spec,
+    binding.slug,
+    judged,
+    config.testRoots,
+    config.redRequired,
+  );
+  if (red !== null) rules.push(red);
   if (results !== undefined) {
     rules.push(checkExecution(binding.spec, binding.slug, results));
   }

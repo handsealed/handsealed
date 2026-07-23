@@ -10,6 +10,7 @@ import { parseArgs } from "node:util";
 import { judge, parseResults, renderMarkdown, type SuiteResults } from "@handsealed/engine";
 import { createGitFacts } from "@handsealed/facts-git";
 import { evidenceRun, renderEvidenceSummary } from "./commands/evidence.js";
+import { buildRedReceipt, renderRedReceipt } from "./commands/red.js";
 import { buildNodeTestArgs } from "./commands/results.js";
 import { specNew } from "./commands/spec-new.js";
 import {
@@ -46,6 +47,10 @@ commands:
       the commitments you are about to sign, confirm, and sign with your
       code-owner key (default ~/.handsealed/key.pem), writing sibling .sig
       files; --commit/--push land them on the branch.
+  red --slug <slug> --sha <commit> --results <file>... [--out <file>]
+      Write the red receipt (specs/<slug>.red.json) from the red run's
+      results: the marked cases, all of which must have failed at the
+      checkpoint. The red rule verifies it offline.
   results emit-node [--suite <name>] [--out <file>] [--] [paths...]
       Run node:test with the handsealed reporter attached.
   evidence run [--dir <cwd>]
@@ -239,6 +244,54 @@ async function runResults(argv: string[]): Promise<number> {
   });
 }
 
+function runRed(argv: string[]): number {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      slug: { type: "string" },
+      sha: { type: "string" },
+      results: { type: "string", multiple: true },
+      out: { type: "string" },
+    },
+  });
+  if (
+    values.slug === undefined ||
+    values.sha === undefined ||
+    (values.results ?? []).length === 0
+  ) {
+    process.stderr.write("red requires --slug, --sha, and at least one --results <file>\n");
+    return 2;
+  }
+  const suites = [];
+  for (const path of values.results ?? []) {
+    let source: string;
+    try {
+      source = readFileSync(path, "utf8");
+    } catch {
+      process.stderr.write(`could not read results file ${path}\n`);
+      return 2;
+    }
+    const parsed = parseResults(source);
+    if (!parsed.ok) {
+      process.stderr.write(
+        `invalid results file ${path}: ${parsed.issues.map((issue) => issue.message).join("; ")}\n`,
+      );
+      return 2;
+    }
+    suites.push(parsed.value);
+  }
+  const slug = values.slug.replace(/\.md$/, "").replace(/^.*\//, "");
+  const built = buildRedReceipt(slug, values.sha, suites);
+  if (!built.ok) {
+    process.stderr.write(`${built.error}\n`);
+    return 2;
+  }
+  const outPath = values.out ?? `specs/${slug}.red.json`;
+  writeFileSync(outPath, renderRedReceipt(built.receipt));
+  process.stdout.write(`${outPath}\n`);
+  return 0;
+}
+
 async function runEvidence(argv: string[]): Promise<number> {
   const [sub, ...rest] = argv;
   if (sub !== "run") {
@@ -258,6 +311,7 @@ async function main(): Promise<number> {
     if (command === "spec") return runSpec(rest);
     if (command === "sign") return await runSign(rest);
     if (command === "keygen") return runKeygen(rest);
+    if (command === "red") return runRed(rest);
     if (command === "results") return await runResults(rest);
     if (command === "evidence") return await runEvidence(rest);
   } catch (error) {

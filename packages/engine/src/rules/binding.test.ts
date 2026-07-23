@@ -128,3 +128,28 @@ test("an unparseable base spec fails with its issues", async () => {
   assert.equal(result.verdict.status, "fail");
   assert.match(result.verdict.findings[0]?.message ?? "", /base spec invalid/);
 });
+
+test("the bound mandate's own red receipt is a companion, never a stray", async () => {
+  const facts = memoryFacts({
+    files: { [`b:${FLIP}`]: OPEN, [`h:${FLIP}`]: DELIVERED },
+  });
+  const result = await validateBinding(facts, "b", "h", [
+    { path: FLIP, kind: "modified" },
+    { path: FLIP.replace(/\.md$/, ".red.json"), kind: "added" },
+  ]);
+  assert.equal(result.ok, true);
+});
+
+test("adversarial: a foreign red receipt riding the change is refused", async () => {
+  const facts = memoryFacts({
+    files: { [`b:${FLIP}`]: OPEN, [`h:${FLIP}`]: DELIVERED },
+  });
+  const result = await validateBinding(facts, "b", "h", [
+    { path: FLIP, kind: "modified" },
+    { path: "specs/01zabcdefgh234-another-mandate.red.json", kind: "added" },
+  ]);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.verdict.findings[0]?.message ?? "", /own red receipt/);
+  }
+});

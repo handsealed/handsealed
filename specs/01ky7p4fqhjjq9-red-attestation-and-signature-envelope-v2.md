@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: additive
 paths: packages/**
 outcome: Fail-first proof and signer identity become durable artifacts. A

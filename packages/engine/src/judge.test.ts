@@ -35,7 +35,7 @@ test("implementation lane composes lane, binding, authorization, ceiling, eviden
   assert.equal(verdicts.overall, "pass");
   assert.deepEqual(
     verdicts.rules.map((r) => r.rule),
-    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance"],
+    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance", "red"],
   );
 });
 
@@ -269,7 +269,7 @@ test("[01ky58xnhgf9gw-signed-one-shot-delivery#1] a signed one-shot delivery pas
   assert.equal(verdicts.overall, "pass");
   assert.deepEqual(
     verdicts.rules.map((r) => r.rule),
-    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance"],
+    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance", "red"],
   );
   const authorization = verdicts.rules.find((r) => r.rule === "authorization");
   assert.match(authorization?.findings[0]?.message ?? "", /authorized by owner/);
@@ -434,7 +434,7 @@ test("[01ky67bhen2xbe-evidence-execution-attestation#1] attested results add the
   assert.equal(verdicts.overall, "pass");
   assert.deepEqual(
     verdicts.rules.map((r) => r.rule),
-    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance", "execution"],
+    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance", "red", "execution"],
   );
 });
 
@@ -455,7 +455,7 @@ test("[01ky67bhen2xbe-evidence-execution-attestation#3] verify without results k
   const verdicts = await judge(facts, "b", "h");
   assert.deepEqual(
     verdicts.rules.map((r) => r.rule),
-    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance"],
+    ["lane", "binding", "authorization", "ceiling", "evidence", "acceptance", "red"],
   );
 });
 

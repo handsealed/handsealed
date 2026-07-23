@@ -166,3 +166,18 @@ test("issues carry positions", () => {
   assert.equal(first?.line, 1);
   assert.ok((first?.column ?? 0) >= 1);
 });
+
+test("redRequired accepts off and additive, refuses anything else, and defaults absent", () => {
+  const additive = parseConfig(`${VALID}redRequired: additive\n`);
+  assert.equal(additive.ok, true);
+  if (additive.ok) assert.equal(additive.value.redRequired, "additive");
+  const off = parseConfig(`${VALID}redRequired: off\n`);
+  assert.equal(off.ok, true);
+  if (off.ok) assert.equal(off.value.redRequired, "off");
+  const invalid = parseConfig(`${VALID}redRequired: sometimes\n`);
+  assert.equal(invalid.ok, false);
+  if (!invalid.ok) assert.ok(invalid.issues.some((i) => i.message.includes("redRequired")));
+  const absent = parseConfig(VALID);
+  assert.equal(absent.ok, true);
+  if (absent.ok) assert.equal(absent.value.redRequired, undefined);
+});
