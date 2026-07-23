@@ -1,4 +1,4 @@
-status: open
+status: delivered
 evidence: non-additive
 paths: packages/** package-lock.json
 outcome: Publish 0.5.0 — the release carrying one-command signing (handsealed
